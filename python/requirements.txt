@@ -14,11 +14,12 @@ click==8.1.7               # CLI 框架
 # ============ 工具库 ============
 python-dateutil==2.8.2     # 日期处理
 
-# ============ Phase 2 将添加 ============
-# playwright==1.42.0       # 网页自动化
-# aiohttp==3.9.1           # 异步 HTTP
-# beautifulsoup4==4.12.3   # HTML 解析
-# tqdm==4.66.1             # 进度条
+# ============ Phase 2: Python 爬虫核心 ============
+playwright==1.42.0          # 网页自动化
+aiohttp==3.9.1              # 异步 HTTP
+beautifulsoup4==4.12.3      # HTML 解析
+tqdm==4.66.1                # 进度条
+pytest==8.0.0               # 单元测试
 
 # ============ Phase 4 将添加 ============
 # pandas==2.2.0            # 数据处理
