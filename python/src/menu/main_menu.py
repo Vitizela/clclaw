@@ -223,20 +223,10 @@ class MainMenu:
             self.console.print(f"[cyan]🐍 使用 Python 爬虫更新...[/cyan]\n")
             try:
                 # Run async Python scraper
-                # Try to use existing event loop, or create new one
-                try:
-                    # Check if there's already a running event loop
-                    asyncio.get_running_loop()
-                    # If we get here, loop is running - use new_event_loop()
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    try:
-                        loop.run_until_complete(self._run_python_scraper(selected_authors, max_pages))
-                    finally:
-                        loop.close()
-                except RuntimeError:
-                    # No event loop running, safe to use asyncio.run()
-                    asyncio.run(self._run_python_scraper(selected_authors, max_pages))
+                asyncio.run(self._run_python_scraper(selected_authors, max_pages))
+
+                # 更新完成后等待用户确认
+                questionary.press_any_key_to_continue("\n按任意键继续...").ask()
                 return
             except Exception as e:
                 self.console.print(f"\n[red]✗ Python 爬虫失败: {str(e)}[/red]")
@@ -332,7 +322,6 @@ class MainMenu:
         self.config_manager.save(self.config)
 
         self.console.print(f"\n[green]✓ 所有作者更新完成[/green]")
-        questionary.press_any_key_to_continue("\n按任意键继续...").ask()
 
     def _unfollow_author(self) -> None:
         """取消关注作者"""
