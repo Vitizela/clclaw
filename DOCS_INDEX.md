@@ -38,6 +38,7 @@
 | **[PHASE1_BUGS_FIXED.md](./PHASE1_BUGS_FIXED.md)** | Phase 1 Bug 修复记录 | ✅ 已完成 |
 | **[python/PHASE2_COMPLETION_REPORT.md](./python/PHASE2_COMPLETION_REPORT.md)** | Phase 2 完成报告 | ✅ 已完成 |
 | **[python/PHASE2_PROBLEMS_AND_FIXES.md](./python/PHASE2_PROBLEMS_AND_FIXES.md)** | Phase 2 问题与修复记录 | ✅ 已完成 |
+| **[PHASE2B_DESIGN.md](./PHASE2B_DESIGN.md)** | Phase 2-B 用户体验改进设计 | 📋 设计中 |
 | **[python/IMPLEMENTATION_STATUS.md](./python/IMPLEMENTATION_STATUS.md)** | 项目实施状态总览 | 🔄 持续更新 |
 
 ### 🧪 测试文档
@@ -46,6 +47,7 @@
 |------|------|---------|
 | **[PHASE1_TESTING.md](./PHASE1_TESTING.md)** | Phase 1 测试指南 | Phase 1 |
 | **[PHASE2_TESTING.md](./PHASE2_TESTING.md)** | Phase 2 测试指南 | Phase 2 |
+| **[PHASE2B_TESTING.md](./PHASE2B_TESTING.md)** | Phase 2-B 测试指南（用户体验改进）| Phase 2-B |
 | **[PHASE2_API_MAPPING.md](./PHASE2_API_MAPPING.md)** | Playwright API 映射参考 | Phase 2 |
 | **[PHASE2_DESIGN_SUPPLEMENT.md](./PHASE2_DESIGN_SUPPLEMENT.md)** | Phase 2 设计补充 | Phase 2 |
 
@@ -218,6 +220,28 @@ PROJECT_OVERVIEW.md (入口)
   - 快速开始指南
   - 文档索引
 
+### PHASE2B_DESIGN.md
+- **内容**: Phase 2-B 用户体验改进设计方案
+- **长度**: ~1100 行
+- **关键信息**:
+  - 4 个核心需求详细分析
+  - 用户流程设计（修改前后对比）
+  - 技术实施方案（详细代码示例）
+  - 分步实施指南（6 步，共 90 分钟）
+  - 验收标准（16 项）
+  - 风险评估和注意事项
+
+### PHASE2B_TESTING.md
+- **内容**: Phase 2-B 测试指南
+- **长度**: ~900 行
+- **关键信息**:
+  - 40 个测试用例（TC1-TC8）
+  - 8 大测试类别全覆盖
+  - 详细的测试步骤和预期结果
+  - 边界条件和兼容性测试
+  - 问题记录模板
+  - 测试报告模板
+
 ---
 
 ## 📝 文档维护
@@ -295,6 +319,7 @@ PROJECT_OVERVIEW.md (入口)
 |------|------|------|
 | 1.0 | 2026-02-11 | 初始版本，完整文档体系 |
 | 1.1 | 2026-02-11 | 添加 Phase 2 完成报告和问题修复文档 |
+| 1.2 | 2026-02-11 | 添加 Phase 2-B 设计和测试文档 |
 
 ---
 
