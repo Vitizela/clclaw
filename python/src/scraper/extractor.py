@@ -354,10 +354,18 @@ class PostExtractor:
         try:
             videos = []
 
-            # Try video elements
-            video_elems = await self.page.query_selector_all('video source')
+            # Try video elements with src attribute (most common)
+            video_elems = await self.page.query_selector_all('video[src]')
             for video in video_elems:
                 src = await video.get_attribute('src')
+                if src and src not in videos:
+                    abs_url = parse_relative_url(self.base_url, src)
+                    videos.append(abs_url)
+
+            # Try video elements with source children
+            source_elems = await self.page.query_selector_all('video source')
+            for source in source_elems:
+                src = await source.get_attribute('src')
                 if src and src not in videos:
                     abs_url = parse_relative_url(self.base_url, src)
                     videos.append(abs_url)
