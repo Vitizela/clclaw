@@ -1,0 +1,57 @@
+version: '2.0'
+forum:
+  section_url: https://t66y.com/thread0806.php?fid=7
+  timeout: 60
+  max_retries: 3
+followed_authors:
+- name: 独醉笑清风
+  added_date: '2026-02-11'
+  last_update: null
+  total_posts: 0
+  total_images: 0
+  total_videos: 0
+  tags:
+  - synced_from_nodejs
+  notes: 从 config.json 同步
+- name: 清风皓月
+  added_date: '2026-02-11'
+  last_update: null
+  total_posts: 0
+  total_images: 0
+  total_videos: 0
+  tags:
+  - synced_from_nodejs
+  notes: 从 config.json 同步
+storage:
+  archive_path: ./论坛存档
+  analysis_path: ./分析报告
+  database_path: ./python/data/forum_data.db
+  download:
+    images: true
+    videos: true
+    max_file_size_mb: 100
+  organization:
+    structure: author/year/month/title
+    filename_max_length: 100
+analysis:
+  enabled: false
+schedule:
+  enabled: false
+  frequency: daily
+  time: 03:00
+logging:
+  level: INFO
+  file: ./logs/scraper.log
+  max_size_mb: 50
+  backup_count: 5
+advanced:
+  parallel_downloads: 5
+  browser_headless: true
+  proxy: null
+experimental:
+  use_python_scraper: false
+  enable_database: false
+legacy:
+  keep_nodejs_scripts: true
+  nodejs_path: ../
+last_updated: '2026-02-11 19:00:04'
