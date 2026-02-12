@@ -5,15 +5,27 @@ forum:
   max_retries: 3
 followed_authors:
 - name: 独醉笑清风
+  url: https://t66y.com/@独醉笑清风
   added_date: '2026-02-11'
-  last_update: null
-  total_posts: 0
+  last_update: '2026-02-11 22:58:52'
+  total_posts: 80
   total_images: 0
   total_videos: 0
   tags:
   - synced_from_nodejs
-  notes: 从 config.json 同步
+  notes: URL已更正为作者主页格式
 - name: 清风皓月
+  url: https://t66y.com/@清风皓月
+  added_date: '2026-02-11'
+  last_update: '2026-02-11 23:19:33'
+  total_posts: 77
+  total_images: 0
+  total_videos: 0
+  tags:
+  - synced_from_nodejs
+  notes: URL已更正为作者主页格式
+- name: 无敌帅哥
+  url: https://t66y.com/@无敌帅哥
   added_date: '2026-02-11'
   last_update: null
   total_posts: 0
@@ -21,9 +33,9 @@ followed_authors:
   total_videos: 0
   tags:
   - synced_from_nodejs
-  notes: 从 config.json 同步
+  notes: 从 config.json 补充同步
 storage:
-  archive_path: ./论坛存档
+  archive_path: /home/ben/Download/t66y
   analysis_path: ./分析报告
   database_path: ./python/data/forum_data.db
   download:
@@ -46,16 +58,16 @@ logging:
   backup_count: 5
 advanced:
   parallel_downloads: 5
+  browser_headless: true
+  proxy: null
   max_concurrent: 5
   download_retry: 3
   download_timeout: 30
   rate_limit_delay: 0.5
-  browser_headless: true
-  proxy: null
 experimental:
-  use_python_scraper: false
+  use_python_scraper: true
   enable_database: false
 legacy:
   keep_nodejs_scripts: true
   nodejs_path: ../
-last_updated: '2026-02-11 19:00:04'
+last_updated: '2026-02-11 23:19:33'
