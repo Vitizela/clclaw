@@ -99,6 +99,10 @@ class ForumArchiver:
             # 阶段一：收集所有帖子 URL
             self.logger.info("【阶段 1】收集帖子 URL...")
             post_urls = await self.extractor.collect_post_urls(author_url, max_pages)
+
+            # 🧪 测试模式：限制帖子数量（取消注释下面这行）
+            # post_urls = post_urls[:3]  # 只处理前 3 篇帖子
+
             total_posts = len(post_urls)
 
             if total_posts == 0:
@@ -126,6 +130,17 @@ class ForumArchiver:
                     if not post_data:
                         self.logger.error(f"提取失败，跳过帖子: {post_url}")
                         failed_posts += 1
+                        continue
+
+                    # 验证作者名是否匹配（忽略大小写和空格）
+                    actual_author = post_data['author'].strip()
+                    expected_author = author_name.strip()
+                    if actual_author.lower() != expected_author.lower():
+                        self.logger.warning(
+                            f"⚠ 作者不匹配，跳过: {post_data['title']} "
+                            f"(实际作者: {actual_author}, 期望: {expected_author})"
+                        )
+                        skipped_posts += 1
                         continue
 
                     # 计算目录路径
