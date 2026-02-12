@@ -219,7 +219,7 @@ class MainMenu:
                 "请选择要更新的作者（Space 勾选，Enter 确认）:",
                 choices=author_choices,
                 style=self.custom_style,
-                validate=lambda x: len(x) > 0 or "至少选择一位作者"
+                validate=lambda x: x is None or len(x) > 0 or "至少选择一位作者"  # 允许 ESC 返回 None
             ).ask()
 
             if not selected_authors:
@@ -252,7 +252,7 @@ class MainMenu:
             self.console.print("[dim]提示: 留空表示全部页面，按 ESC 返回[/dim]")
             custom_pages = questionary.text(
                 "请输入页数（留空=全部）:",
-                validate=lambda x: x == '' or (x.isdigit() and int(x) > 0) or "请输入正整数或留空",
+                validate=lambda x: x is None or x == '' or (x.isdigit() and int(x) > 0) or "请输入正整数或留空",  # 允许 ESC 返回 None
                 style=self.custom_style
             ).ask()
 
