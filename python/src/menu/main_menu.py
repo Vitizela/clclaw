@@ -11,7 +11,7 @@ from typing import Dict, Any, List
 from ..config.manager import ConfigManager
 from ..bridge.nodejs_bridge import NodeJSBridge
 from ..utils.display import show_author_table, show_warning
-from ..utils.keybindings import MENU_KEYBINDINGS, INPUT_KEYBINDINGS
+from ..utils.keybindings import select_with_keybindings, checkbox_with_keybindings, text_with_keybindings
 
 
 class MainMenu:
@@ -85,24 +85,22 @@ class MainMenu:
             "🚪 退出"
         ]
 
-        return questionary.select(
+        return select_with_keybindings(
             "\n请选择操作：",
             choices=choices,
-            style=self.custom_style,
-            key_bindings=MENU_KEYBINDINGS
-        ).ask()
+            style=self.custom_style
+        )
 
     def _follow_author(self) -> None:
         """关注新作者"""
         self.console.print("\n[bold]🔍 关注新作者[/bold]\n")
         self.console.print("[dim]提示: ESC/Ctrl+B 返回, 留空也可返回[/dim]\n")
 
-        post_url = questionary.text(
+        post_url = text_with_keybindings(
             "请输入帖子 URL (留空返回):",
             style=self.custom_style,
-            validate=lambda x: True,  # 允许空输入以返回
-            key_bindings=INPUT_KEYBINDINGS
-        ).ask()
+            validate=lambda x: True  # 允许空输入以返回
+        )
 
         if not post_url or not post_url.strip():
             self.console.print("[yellow]已取消操作[/yellow]")
@@ -170,7 +168,7 @@ class MainMenu:
             if valid_last_selected:
                 self.console.print(f"[dim]上次选择了 {len(valid_last_selected)} 位作者: {', '.join(valid_last_selected[:3])}{'...' if len(valid_last_selected) > 3 else ''}[/dim]\n")
 
-                quick_choice = questionary.select(
+                quick_choice = select_with_keybindings(
                     "选择方式:",
                     choices=[
                         questionary.Choice(f"⚡ 使用上次的选择（{len(valid_last_selected)} 位作者）", value='last'),
@@ -179,9 +177,8 @@ class MainMenu:
                         questionary.Choice("← 返回", value='cancel'),
                     ],
                     style=self.custom_style,
-                    default='last',
-                    key_bindings=MENU_KEYBINDINGS
-                ).ask()
+                    default='last'
+                )
 
                 if quick_choice is None or quick_choice == 'cancel':  # 用户取消或选择返回
                     return
@@ -221,13 +218,12 @@ class MainMenu:
                     )
                 )
 
-            selected_authors = questionary.checkbox(
+            selected_authors = checkbox_with_keybindings(
                 "请选择要更新的作者（Space 勾选，Enter 确认，ESC/q 返回）:",
                 choices=author_choices,
                 style=self.custom_style,
-                validate=lambda x: x is None or len(x) > 0 or "至少选择一位作者",  # 允许 ESC 返回 None
-                key_bindings=MENU_KEYBINDINGS
-            ).ask()
+                validate=lambda x: x is None or len(x) > 0 or "至少选择一位作者"  # 允许 ESC 返回 None
+            )
 
             if not selected_authors:
                 return
@@ -235,7 +231,7 @@ class MainMenu:
             self.console.print(f"\n[green]已选择 {len(selected_authors)} 位作者[/green]\n")
 
         # Phase 2-B 需求 3: 设置下载页数
-        page_options = questionary.select(
+        page_options = select_with_keybindings(
             "选择下载页数:",
             choices=[
                 questionary.Choice("📄 仅第 1 页（约 50 篇，推荐测试）", value=1),
@@ -247,9 +243,8 @@ class MainMenu:
                 questionary.Choice("← 返回", value='cancel'),
             ],
             style=self.custom_style,
-            default=1,  # 使用 value 而不是 title
-            key_bindings=MENU_KEYBINDINGS
-        ).ask()
+            default=1  # 使用 value 而不是 title
+        )
 
         if page_options is None or page_options == 'cancel':  # 用户取消或选择返回
             return
@@ -258,12 +253,11 @@ class MainMenu:
         max_pages = page_options
         if page_options == 'custom':
             self.console.print("[dim]提示: 留空=全部页面, ESC/Ctrl+B=返回[/dim]")
-            custom_pages = questionary.text(
+            custom_pages = text_with_keybindings(
                 "请输入页数（留空=全部）:",
                 validate=lambda x: x is None or x == '' or (x.isdigit() and int(x) > 0) or "请输入正整数或留空",  # 允许 ESC 返回 None
-                style=self.custom_style,
-                key_bindings=INPUT_KEYBINDINGS
-            ).ask()
+                style=self.custom_style
+            )
 
             if custom_pages is None:  # 用户按 ESC 取消
                 return
@@ -404,12 +398,11 @@ class MainMenu:
         author_choices = [a['name'] for a in self.config['followed_authors']]
         author_choices.append("← 返回")
 
-        author_name = questionary.select(
+        author_name = select_with_keybindings(
             "选择要取消关注的作者：",
             choices=author_choices,
-            style=self.custom_style,
-            key_bindings=MENU_KEYBINDINGS
-        ).ask()
+            style=self.custom_style
+        )
 
         if author_name == "← 返回" or not author_name:
             return
@@ -440,12 +433,11 @@ class MainMenu:
                 "← 返回"
             ]
 
-            choice = questionary.select(
+            choice = select_with_keybindings(
                 "选择设置项：",
                 choices=setting_choices,
-                style=self.custom_style,
-                key_bindings=MENU_KEYBINDINGS
-            ).ask()
+                style=self.custom_style
+            )
 
             if not choice or choice == "← 返回":
                 break
@@ -465,12 +457,11 @@ class MainMenu:
         self.console.print(f"当前 URL: [cyan]{current}[/cyan]")
         self.console.print("[dim]提示: ESC/Ctrl+B 取消修改[/dim]\n")
 
-        new_url = questionary.text(
+        new_url = text_with_keybindings(
             "新 URL:",
             default=current,
-            style=self.custom_style,
-            key_bindings=INPUT_KEYBINDINGS
-        ).ask()
+            style=self.custom_style
+        )
 
         if new_url is None:  # 用户按 ESC 取消
             self.console.print("[yellow]已取消修改[/yellow]")
@@ -489,12 +480,11 @@ class MainMenu:
         self.console.print(f"当前路径: [cyan]{current}[/cyan]")
         self.console.print("[dim]提示: ESC/Ctrl+B 取消修改[/dim]\n")
 
-        new_path = questionary.text(
+        new_path = text_with_keybindings(
             "新路径:",
             default=current,
-            style=self.custom_style,
-            key_bindings=INPUT_KEYBINDINGS
-        ).ask()
+            style=self.custom_style
+        )
 
         if new_path is None:  # 用户按 ESC 取消
             self.console.print("[yellow]已取消修改[/yellow]")

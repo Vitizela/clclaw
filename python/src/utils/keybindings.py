@@ -9,23 +9,17 @@
 - ESC: 返回上一级（questionary 内置）
 """
 
+from typing import List, Any, Optional
+import questionary
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.keys import Keys
 
 
-def create_menu_keybindings() -> KeyBindings:
-    """创建菜单键绑定（适用于 select/checkbox 菜单）
+def create_custom_keybindings(include_q: bool = True) -> KeyBindings:
+    """创建自定义键绑定
 
-    支持的快捷键：
-    - ESC: 标准返回键（显式绑定）
-    - q / Q: 快速返回（vim 风格）
-    - Ctrl+B: 通用返回键
-
-    注意：
-    - ESC 被显式绑定以确保在所有终端环境中都能工作
-    - 'q' 键会影响搜索功能（无法搜索包含 'q' 的选项）
-    - 但在选择菜单中这个影响可以接受
-    - 用户仍可通过"← 返回"选项或 Ctrl+B/ESC 返回
+    Args:
+        include_q: 是否包含 'q' 键绑定（选择菜单为 True，输入框为 False）
 
     Returns:
         KeyBindings: 键绑定对象
@@ -34,15 +28,7 @@ def create_menu_keybindings() -> KeyBindings:
 
     @bindings.add(Keys.Escape)
     def _(event):
-        """按 ESC 键返回（显式绑定）"""
-        # 显式处理 ESC 键，确保在所有环境中都能工作
-        event.app.exit(result=None)
-
-    @bindings.add('q')
-    @bindings.add('Q')
-    def _(event):
-        """按 q 或 Q 键返回"""
-        # 退出当前交互，questionary.ask() 将返回 None
+        """按 ESC 键返回"""
         event.app.exit(result=None)
 
     @bindings.add(Keys.ControlB)
@@ -50,40 +36,104 @@ def create_menu_keybindings() -> KeyBindings:
         """按 Ctrl+B 返回"""
         event.app.exit(result=None)
 
+    if include_q:
+        @bindings.add('q')
+        @bindings.add('Q')
+        def _(event):
+            """按 q 或 Q 键返回"""
+            event.app.exit(result=None)
+
     return bindings
 
 
-def create_input_keybindings() -> KeyBindings:
-    """创建输入框键绑定（适用于 text/password 输入）
+def select_with_keybindings(message: str, choices: List[Any], **kwargs) -> Any:
+    """带自定义键绑定的 select 菜单
 
-    支持的快捷键：
-    - ESC: 标准取消键（显式绑定）
-    - Ctrl+B: 取消输入并返回
-
-    注意：
-    - ESC 被显式绑定以确保在所有终端环境中都能工作
-    - 不拦截 'q' 键，允许在输入框中正常输入 'q' 字符
-    - 例如：输入 URL 时可能需要 'q' 字符（query 参数等）
-
-    Returns:
-        KeyBindings: 键绑定对象
+    支持 ESC、q、Ctrl+B 返回
     """
-    bindings = KeyBindings()
+    # 获取或创建 key_bindings
+    custom_kb = create_custom_keybindings(include_q=True)
 
-    @bindings.add(Keys.Escape)
-    def _(event):
-        """按 ESC 键取消输入（显式绑定）"""
-        # 显式处理 ESC 键，确保在所有环境中都能工作
-        event.app.exit(result=None)
+    # 如果 kwargs 中已有 key_bindings，需要合并
+    if 'key_bindings' in kwargs:
+        # 移除以避免冲突
+        kwargs.pop('key_bindings')
 
-    @bindings.add(Keys.ControlB)
-    def _(event):
-        """按 Ctrl+B 取消输入"""
-        event.app.exit(result=None)
+    # 使用 kb 参数而不是 key_bindings（questionary 的正确参数名）
+    try:
+        return questionary.select(
+            message,
+            choices=choices,
+            kb=custom_kb,  # 尝试使用 kb 参数
+            **kwargs
+        ).ask()
+    except TypeError:
+        # 如果 kb 也不支持，尝试不带键绑定
+        # 但手动捕获 EOFError
+        try:
+            return questionary.select(
+                message,
+                choices=choices,
+                **kwargs
+            ).unsafe_ask()
+        except (EOFError, KeyboardInterrupt):
+            return None
 
-    return bindings
+
+def checkbox_with_keybindings(message: str, choices: List[Any], **kwargs) -> Any:
+    """带自定义键绑定的 checkbox 菜单
+
+    支持 ESC、q、Ctrl+B 返回
+    """
+    custom_kb = create_custom_keybindings(include_q=True)
+
+    if 'key_bindings' in kwargs:
+        kwargs.pop('key_bindings')
+
+    try:
+        return questionary.checkbox(
+            message,
+            choices=choices,
+            kb=custom_kb,
+            **kwargs
+        ).ask()
+    except TypeError:
+        try:
+            return questionary.checkbox(
+                message,
+                choices=choices,
+                **kwargs
+            ).unsafe_ask()
+        except (EOFError, KeyboardInterrupt):
+            return None
 
 
-# 创建全局实例（避免重复创建）
-MENU_KEYBINDINGS = create_menu_keybindings()
-INPUT_KEYBINDINGS = create_input_keybindings()
+def text_with_keybindings(message: str, **kwargs) -> Any:
+    """带自定义键绑定的 text 输入框
+
+    支持 ESC、Ctrl+B 返回（不包含 q，允许正常输入）
+    """
+    custom_kb = create_custom_keybindings(include_q=False)
+
+    if 'key_bindings' in kwargs:
+        kwargs.pop('key_bindings')
+
+    try:
+        return questionary.text(
+            message,
+            kb=custom_kb,
+            **kwargs
+        ).ask()
+    except TypeError:
+        try:
+            return questionary.text(
+                message,
+                **kwargs
+            ).unsafe_ask()
+        except (EOFError, KeyboardInterrupt):
+            return None
+
+
+# 为了向后兼容，保留这些常量（但不再使用）
+MENU_KEYBINDINGS = create_custom_keybindings(include_q=True)
+INPUT_KEYBINDINGS = create_custom_keybindings(include_q=False)
