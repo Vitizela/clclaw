@@ -188,7 +188,7 @@ class MainMenu:
                 questionary.Choice("⚙️  自定义页数", value='custom'),
             ],
             style=self.custom_style,
-            default="📄 仅第 1 页（约 50 篇，推荐测试）"
+            default=1  # 使用 value 而不是 title
         ).ask()
 
         if page_options is None:  # 用户取消
