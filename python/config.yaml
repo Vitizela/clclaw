@@ -37,8 +37,8 @@ followed_authors:
 - name: 纯情母老虎
   url: https://t66y.com/@纯情母老虎
   added_date: '2026-02-12'
-  last_update: null
-  total_posts: 0
+  last_update: '2026-02-12 00:43:32'
+  total_posts: 6
   total_images: 0
   total_videos: 0
   tags:
@@ -107,10 +107,11 @@ advanced:
 experimental:
   use_python_scraper: true
   enable_database: false
-user_preferences:
-  last_selected_authors: []
-  remember_selection: true
 legacy:
   keep_nodejs_scripts: true
   nodejs_path: ../
-last_updated: '2026-02-12 00:17:16'
+user_preferences:
+  last_selected_authors:
+  - 纯情母老虎
+  remember_selection: true
+last_updated: '2026-02-12 00:43:32'
