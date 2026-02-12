@@ -473,9 +473,12 @@ class MainMenu:
         from pathlib import Path
 
         # 读取 Node.js 的 config.json
-        json_path = Path(__file__).parent.parent.parent.parent.parent / "config.json"
+        # __file__ 是 .../python/src/menu/main_menu.py
+        # .parent.parent.parent.parent 到达项目根目录
+        json_path = Path(__file__).parent.parent.parent.parent / "config.json"
 
         if not json_path.exists():
+            self.console.print(f"[yellow]⚠ config.json 不存在: {json_path}[/yellow]")
             return
 
         try:
@@ -496,6 +499,7 @@ class MainMenu:
                         from datetime import datetime
                         existing_authors[author_name] = {
                             'name': author_name,
+                            'url': f"https://t66y.com/@{author_name}",  # 添加 URL
                             'added_date': datetime.now().strftime('%Y-%m-%d'),
                             'last_update': None,
                             'total_posts': 0,
