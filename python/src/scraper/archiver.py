@@ -96,9 +96,13 @@ class ForumArchiver:
             # 启动浏览器
             await self.extractor.start()
 
-            # 阶段一：收集所有帖子 URL
+            # 阶段一：收集所有帖子 URL（带作者过滤）
             self.logger.info("【阶段 1】收集帖子 URL...")
-            post_urls = await self.extractor.collect_post_urls(author_url, max_pages)
+            post_urls = await self.extractor.collect_post_urls(
+                author_url,
+                max_pages,
+                author_name=author_name
+            )
 
             # 🧪 测试模式：限制帖子数量（取消注释下面这行）
             # post_urls = post_urls[:3]  # 只处理前 3 篇帖子

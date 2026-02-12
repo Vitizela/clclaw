@@ -63,13 +63,15 @@ class PostExtractor:
     async def collect_post_urls(
         self,
         author_url: str,
-        max_pages: Optional[int] = None
+        max_pages: Optional[int] = None,
+        author_name: Optional[str] = None
     ) -> List[str]:
         """收集作者的所有帖子 URL（两阶段的第一阶段）
 
         Args:
             author_url: Author's post list URL
             max_pages: Maximum number of pages to scrape (None = all)
+            author_name: Expected author name for filtering (optional)
 
         Returns:
             List of post URLs
@@ -94,22 +96,45 @@ class PostExtractor:
                 self.logger.info(f"正在抓取第 {page_num} 页...")
                 await self.page.goto(current_url, wait_until='networkidle', timeout=30000)
 
-                # 提取帖子 URL（注意：使用 Python API - query_selector_all）
-                # Selector: 匹配所有包含 htm_data 的帖子链接
-                links = await self.page.query_selector_all('table a[href*="htm_data"]')
+                # 找所有包含帖子链接的行
+                all_rows = await self.page.query_selector_all('table tbody tr')
 
-                if not links:
-                    self.logger.info(f"第 {page_num} 页无更多帖子")
-                    break
-
-                # 获取所有 href 属性
                 page_post_urls = []
-                for link in links:
+                filtered_count = 0
+
+                for row in all_rows:
+                    # 检查这行是否包含帖子链接
+                    link = await row.query_selector('a[href*="htm_data"]')
+                    if not link:
+                        continue
+
+                    # 如果指定了作者名，检查作者列（TD3）
+                    if author_name:
+                        cells = await row.query_selector_all('td')
+                        if len(cells) >= 3:
+                            # TD3 包含作者信息（格式：作者名 时间）
+                            author_cell = cells[2]
+                            author_text = await author_cell.inner_text()
+                            # 提取作者名（空格前的部分）
+                            row_author = author_text.split()[0] if author_text else ''
+
+                            # 检查作者名是否匹配
+                            if row_author.lower().strip() != author_name.lower().strip():
+                                filtered_count += 1
+                                continue
+
+                    # 获取帖子 URL
                     href = await link.get_attribute('href')
                     if href:
-                        # Convert to absolute URL
                         full_url = parse_relative_url(self.base_url, href)
                         page_post_urls.append(full_url)
+
+                if filtered_count > 0:
+                    self.logger.info(f"  过滤掉 {filtered_count} 个其他作者的帖子")
+
+                if not page_post_urls:
+                    self.logger.info(f"第 {page_num} 页无更多匹配的帖子")
+                    break
 
                 post_urls.extend(page_post_urls)
                 self.logger.info(f"第 {page_num} 页: 找到 {len(page_post_urls)} 篇帖子")
