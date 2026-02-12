@@ -279,4 +279,109 @@ python3 -c "from src.menu.main_menu import MainMenu; print('✓ 模块导入成�
 
 ---
 
+## 🚀 后续增强计划（2026-02-12）
+
+### 增强 7：选中作者的视觉标记
+
+**需求背景**：
+- 用户反馈：在"立即更新所有作者"时，无法直观看出哪些作者被选中了
+- 当前问题：checkbox 界面有选中指示，但选择完成后没有可视化确认
+
+**解决方案**：选择后显示带标记的确认表格
+
+```python
+def _show_selection_summary(self, selected_authors: list) -> None:
+    """显示选中作者的汇总表格（带标记）"""
+    table = Table(show_header=True, header_style="bold cyan", border_style="dim")
+    table.add_column("状态", justify="center", width=6)
+    table.add_column("作者名", style="cyan")
+    table.add_column("帖子数", justify="right")
+    table.add_column("最后更新", style="dim")
+
+    selected_names = {author['name'] for author in selected_authors}
+
+    for author in self.config['followed_authors']:
+        if author['name'] in selected_names:
+            status = "[green]✅[/green]"
+            name_style = "[bold cyan]"
+        else:
+            status = "[dim]⬜[/dim]"
+            name_style = "[dim]"
+
+        name = f"{name_style}{author['name']}[/]"
+        total_posts = author.get('total_posts', 0)
+        last_update = author.get('last_update', '从未')
+
+        table.add_row(
+            status,
+            name,
+            str(total_posts) if total_posts > 0 else "-",
+            last_update if last_update else "-"
+        )
+
+    self.console.print(table)
+```
+
+**预期效果**：
+```
+✓ 已选择 2 位作者:
+
+┏━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━┓
+┃ 状态 ┃ 作者名 ┃ 帖子数 ┃ 最后更新   ┃
+┡━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━┩
+│  ✅  │ 张三   │    150 │ 2026-02-11 │  ← 选中
+│  ⬜  │ 李四   │     80 │ 2026-02-10 │
+│  ✅  │ 王五   │    200 │ 2026-02-12 │  ← 选中
+└──────┴────────┴────────┴────────────┘
+```
+
+**状态**：⏳ 待实施
+
+---
+
+### 增强 8：按帖子数量下载
+
+**需求背景**：
+- 用户反馈：有些作者只有 1 页，但已经有很多帖子（50+ 篇）
+- 当前问题：只能按页数限制，无法精确控制帖子数量
+- 用户期望：想下载"前 100 篇帖子"而不是"前 N 页"
+
+**解决方案**：混合选择模式
+
+**新增菜单流程**：
+```
+选择下载限制方式:
+  📄 按页数限制（快速，推荐测试）
+  📊 按帖子数量限制（精确控制）
+  📚 下载全部内容
+  ← 返回
+
+[选择"按页数"] → 现有的页数菜单
+[选择"按帖子数量"] →
+  📝 前 50 篇（推荐测试）
+  📝 前 100 篇
+  📝 前 200 篇
+  📝 前 500 篇
+  ⚙️  自定义数量
+  ← 返回
+```
+
+**技术实现**：
+1. `extractor.py` 的 `collect_post_urls()` 添加 `max_posts` 参数
+2. 收集帖子 URL 时，达到 `max_posts` 数量就停止
+3. 逻辑：`if max_posts and len(post_urls) >= max_posts: break`
+
+**修改文件**：
+- `python/src/menu/main_menu.py` - 菜单逻辑
+- `python/src/scraper/archiver.py` - 参数传递
+- `python/src/scraper/extractor.py` - 限制逻辑
+
+**状态**：⏳ 待实施
+
+---
+
+**详细设计文档**：参见 [AUTHOR_SELECTION_ENHANCEMENT_ANALYSIS.md](./AUTHOR_SELECTION_ENHANCEMENT_ANALYSIS.md)
+
+---
+
 **改进完成！用户体验大幅提升！** 🎉

@@ -1408,3 +1408,433 @@ except Exception as e:
 3. 提交 Issue 或反馈
 
 **持续改进，用户至上！** 💪
+
+---
+
+## 📋 增量改进 INC-005：菜单增强需求分析（2026-02-12 下午）
+
+### 基本信息
+
+| 项目 | 内容 |
+|------|------|
+| **改进ID** | INC-005 |
+| **需求来源** | 用户反馈 |
+| **类型** | 需求分析 + 方案设计 |
+| **优先级** | 🟡 P1 - High |
+| **状态** | 📝 分析完成，待实施 |
+| **分析时间** | 60 分钟 |
+
+---
+
+### 🔍 需求概述
+
+#### 需求 1：选中作者的视觉标记
+
+**用户反馈**：
+```
+我想在"立即更新所有作者的列表"中，能够看到被选中的作者，请为我加上标记
+```
+
+**问题分析**：
+- 当前 checkbox 界面有选中指示，但不够直观
+- 选择完成后没有可视化的确认反馈
+- 用户不确定自己选了哪些作者
+
+**推荐方案**：选择后显示带标记的确认表格（方案 1.1）
+- 清晰度：⭐⭐⭐⭐⭐
+- 实现难度：⭐⭐（简单）
+- 用户体验：⭐⭐⭐⭐⭐
+- 预计耗时：30 分钟
+
+---
+
+#### 需求 2：按帖子数量下载
+
+**用户反馈**：
+```
+我也要在"选择下载页数"那个菜单，增加选择要下载的帖子的数量，不只是页数，
+因为有些作者只有1页，就已经很多数据了
+```
+
+**问题分析**：
+- 当前只能按页数限制（1, 3, 5, 10 页）
+- 有些作者 1 页就有 50+ 篇帖子，但按页数无法精确控制
+- 用户想要精确控制"下载多少篇帖子"
+
+**推荐方案**：混合选择模式（方案 2.1）
+- 灵活性：⭐⭐⭐⭐⭐
+- 实现难度：⭐⭐⭐⭐（中等）
+- 用户体验：⭐⭐⭐⭐⭐
+- 性能影响：⭐⭐⭐⭐⭐（无影响）
+- 预计耗时：2-3 小时
+
+**新增菜单流程**：
+```
+第一层：选择限制方式
+  📄 按页数限制（快速，推荐测试）
+  📊 按帖子数量限制（精确控制）
+  📚 下载全部内容
+  ← 返回
+
+第二层（按页数）：
+  📄 仅第 1 页（约 50 篇）
+  📄 前 3 页（约 150 篇）
+  📄 前 5 页（约 250 篇）
+  📄 前 10 页（约 500 篇）
+  ⚙️  自定义页数
+  ← 返回
+
+第二层（按帖子数）：
+  📝 前 50 篇（推荐测试）
+  📝 前 100 篇
+  📝 前 200 篇
+  📝 前 500 篇
+  ⚙️  自定义数量
+  ← 返回
+```
+
+---
+
+### 🎯 技术实现方案
+
+#### 需求 1 实现：选中作者标记
+
+**修改文件**：`python/src/menu/main_menu.py`
+
+**修改 1：Line 231 后添加调用**
+```python
+self.console.print(f"\n[green]✓ 已选择 {len(selected_authors)} 位作者:[/green]\n")
+self._show_selection_summary(selected_authors)
+self.console.print()
+```
+
+**修改 2：新增方法**
+```python
+def _show_selection_summary(self, selected_authors: list) -> None:
+    """显示选中作者的汇总表格（带标记）"""
+    from rich.table import Table
+
+    table = Table(show_header=True, header_style="bold cyan", border_style="dim")
+    table.add_column("状态", justify="center", width=6)
+    table.add_column("作者名", style="cyan")
+    table.add_column("帖子数", justify="right")
+    table.add_column("最后更新", style="dim")
+
+    selected_names = {author['name'] for author in selected_authors}
+
+    for author in self.config['followed_authors']:
+        if author['name'] in selected_names:
+            status = "[green]✅[/green]"
+            name_style = "[bold cyan]"
+        else:
+            status = "[dim]⬜[/dim]"
+            name_style = "[dim]"
+
+        name = f"{name_style}{author['name']}[/]"
+        total_posts = author.get('total_posts', 0)
+        last_update = author.get('last_update', '从未')
+
+        table.add_row(
+            status,
+            name,
+            str(total_posts) if total_posts > 0 else "-",
+            last_update if last_update else "-"
+        )
+
+    self.console.print(table)
+```
+
+---
+
+#### 需求 2 实现：按帖子数量下载
+
+**修改文件清单**：
+1. `python/src/menu/main_menu.py` - 菜单逻辑
+2. `python/src/scraper/archiver.py` - 参数传递
+3. `python/src/scraper/extractor.py` - 限制逻辑
+
+**修改 1：main_menu.py 菜单**（Line 233-267 替换）
+```python
+# 第一层：选择限制方式
+download_mode = select_with_keybindings(
+    "选择下载限制方式:",
+    choices=[
+        questionary.Choice("📄 按页数限制（快速，推荐测试）", value='pages'),
+        questionary.Choice("📊 按帖子数量限制（精确控制）", value='posts'),
+        questionary.Choice("📚 下载全部内容", value='all'),
+        questionary.Choice("← 返回", value='cancel'),
+    ],
+    style=self.custom_style,
+    default='pages'
+)
+
+if download_mode is None or download_mode == 'cancel':
+    return
+
+max_pages = None
+max_posts = None
+
+# 按页数限制
+if download_mode == 'pages':
+    # ... 现有的页数选择逻辑 ...
+
+# 按帖子数量限制
+elif download_mode == 'posts':
+    post_options = select_with_keybindings(
+        "选择下载帖子数量:",
+        choices=[
+            questionary.Choice("📝 前 50 篇（推荐测试）", value=50),
+            questionary.Choice("📝 前 100 篇", value=100),
+            questionary.Choice("📝 前 200 篇", value=200),
+            questionary.Choice("📝 前 500 篇", value=500),
+            questionary.Choice("⚙️  自定义数量", value='custom'),
+            questionary.Choice("← 返回", value='cancel'),
+        ],
+        style=self.custom_style,
+        default=50
+    )
+
+    if post_options is None or post_options == 'cancel':
+        return
+
+    if post_options == 'custom':
+        custom_posts = text_with_keybindings(
+            "请输入帖子数量（正整数）:",
+            validate=lambda x: x is None or (x.isdigit() and int(x) > 0) or "请输入正整数",
+            style=self.custom_style
+        )
+        if custom_posts is None:
+            return
+        max_posts = int(custom_posts)
+    else:
+        max_posts = post_options
+```
+
+**修改 2：archiver.py 参数传递**
+```python
+async def archive_author(
+    self,
+    author_name: str,
+    author_url: str,
+    max_pages: Optional[int] = None,
+    max_posts: Optional[int] = None  # ← 新增参数
+) -> dict:
+    """归档作者的所有帖子
+
+    Args:
+        max_pages: 最大页数限制（None = 无限制）
+        max_posts: 最大帖子数限制（None = 无限制）
+    """
+    # ...
+    post_urls = await self.extractor.collect_post_urls(
+        author_url,
+        max_pages=max_pages,
+        max_posts=max_posts  # ← 传递参数
+    )
+```
+
+**修改 3：extractor.py 限制逻辑**
+```python
+async def collect_post_urls(
+    self,
+    author_url: str,
+    max_pages: Optional[int] = None,
+    max_posts: Optional[int] = None  # ← 新增参数
+) -> List[str]:
+    """收集作者的所有帖子 URL
+
+    Args:
+        max_pages: 最大页数限制
+        max_posts: 最大帖子数限制（优先于 max_pages）
+    """
+    self.logger.info(f"开始收集帖子列表: {author_url}")
+
+    if max_posts:
+        self.logger.info(f"限制: 最多收集 {max_posts} 篇帖子")
+    elif max_pages:
+        self.logger.info(f"限制: 最多收集 {max_pages} 页")
+
+    post_urls = []
+    page_num = 1
+
+    while True:
+        # 检查帖子数限制（优先）
+        if max_posts and len(post_urls) >= max_posts:
+            self.logger.info(f"已达到帖子数限制: {len(post_urls)} 篇")
+            break
+
+        # 检查页数限制
+        if max_pages and page_num > max_pages:
+            self.logger.info(f"已达到页数限制: {page_num-1} 页")
+            break
+
+        # ... 获取当前页 ...
+
+        # 提取链接
+        links = await self.page.query_selector_all('#tbody tr .bl a')
+
+        if not links:
+            self.logger.info(f"第 {page_num} 页无更多帖子")
+            break
+
+        # 添加链接（考虑帖子数限制）
+        for link in links:
+            if max_posts and len(post_urls) >= max_posts:
+                break  # ← 达到限制，停止添加
+
+            href = await link.get_attribute('href')
+            if href:
+                full_url = self.base_url + href
+                post_urls.append(full_url)
+
+        self.logger.info(
+            f"第 {page_num} 页: 收集 {len(links)} 篇帖子"
+            f"（累计 {len(post_urls)} 篇）"
+        )
+
+        # 如果已达到帖子数限制，退出
+        if max_posts and len(post_urls) >= max_posts:
+            break
+
+        # 检查下一页
+        next_page = await self.page.query_selector('.pages .next')
+        if not next_page:
+            break
+
+        page_num += 1
+        await asyncio.sleep(0.5)
+
+    self.logger.info(f"收集完成，共 {len(post_urls)} 篇帖子")
+    return post_urls
+```
+
+---
+
+### 📊 方案对比
+
+#### 需求 1：选中作者标记
+
+| 方案 | 清晰度 | 实现难度 | 用户体验 | 推荐度 |
+|------|--------|---------|---------|--------|
+| **1.1 选择后确认表格** | ⭐⭐⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐⭐⭐ | ✅ 强烈推荐 |
+| 1.2 增强 checkbox 显示 | ⭐⭐⭐ | ⭐ | ⭐⭐⭐ | 可选 |
+| 1.3 选择前预览 | ⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ | 不推荐 |
+
+#### 需求 2：按帖子数量下载
+
+| 方案 | 灵活性 | 实现难度 | 用户体验 | 性能 | 推荐度 |
+|------|--------|---------|---------|------|--------|
+| **2.1 混合选择模式** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ✅ 强烈推荐 |
+| 2.2 单菜单混合 | ⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | 可选 |
+| 2.3 智能建议 | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐ | 可选优化 |
+
+---
+
+### ⏱️ 实施预计
+
+| 任务 | 难度 | 预计耗时 | 优先级 |
+|------|------|---------|--------|
+| **需求 1: 选中标记** | 简单 ⭐ | 30 分钟 | P1 |
+| **需求 2: 帖子数量** | 中等 ⭐⭐⭐ | 2-3 小时 | P1 |
+| **测试验证** | - | 1 小时 | - |
+| **总计** | - | **3-4 小时** | - |
+
+---
+
+### 🧪 测试计划
+
+#### 测试 1：选中作者标记
+```bash
+cd python && python main.py
+# 选择 [3] 立即更新
+# 选择部分作者（不是全部）
+# 确认后检查是否显示带 ✅ 标记的表格
+```
+
+**预期结果**：
+- ✅ 表格显示所有作者
+- ✅ 选中的作者有绿色 ✅ 标记
+- ✅ 未选中的作者有灰色 ⬜ 标记
+
+#### 测试 2：按帖子数下载
+```bash
+cd python && python main.py
+# 选择 [3] 立即更新
+# 选择"按帖子数量限制"
+# 选择"前 50 篇"
+# 确认下载
+```
+
+**预期结果**：
+- ✅ 只下载前 50 篇帖子（可能跨多页）
+- ✅ 日志显示"已达到帖子数限制: 50 篇"
+
+---
+
+### 📝 文档输出
+
+**创建的文档**：
+- ✅ **AUTHOR_SELECTION_ENHANCEMENT_ANALYSIS.md** - 完整的需求分析和方案设计（1200+ 行）
+
+**更新的文档**：
+- 🔄 **MENU_ENHANCEMENT.md** - 添加后续增强计划（增强 7 和 8）
+- 🔄 **INCREMENTAL_IMPROVEMENTS_2026-02-12.md** - 本节内容
+- 🔄 **DOCS_INDEX.md** - 添加新文档索引（待更新）
+
+---
+
+### 💡 设计亮点
+
+#### 1. 用户反馈驱动
+- 需求来自真实用户使用场景
+- 解决实际痛点（1页有很多帖子）
+- 提升操作灵活性
+
+#### 2. 向后兼容
+- `max_posts` 为可选参数
+- 不影响现有代码
+- 保留原有的按页数选择
+
+#### 3. 渐进式增强
+- 第一层菜单：选择模式
+- 第二层菜单：具体参数
+- 清晰的导航路径
+
+#### 4. 智能验证
+- 过滤已删除的作者
+- 参数合法性检查
+- 友好的错误提示
+
+---
+
+### 📚 相关文档
+
+- **AUTHOR_SELECTION_ENHANCEMENT_ANALYSIS.md** - 完整分析（新建）
+- **MENU_ENHANCEMENT.md** - 菜单增强记录（已更新）
+- **PHASE2B_DESIGN.md** - Phase 2-B 设计
+- **PHASE2B_COMPLETION_REPORT.md** - Phase 2-B 完成报告
+
+---
+
+### 🎯 下一步行动
+
+1. **等待用户确认方案** ⏳
+2. **实施需求 1**（30分钟）
+   - 修改 main_menu.py
+   - 添加 _show_selection_summary 方法
+   - 测试验证
+3. **实施需求 2**（2-3小时）
+   - 修改 main_menu.py 菜单
+   - 修改 archiver.py 参数传递
+   - 修改 extractor.py 限制逻辑
+   - 测试验证
+4. **提交代码**
+   - Git commit: "feat: add author selection visual markers"
+   - Git commit: "feat: add post count-based download option"
+5. **更新文档**
+   - 更新 MENU_ENHANCEMENT.md 状态为"已完成"
+   - 创建完成报告
+
+---
+
+**分析完成，等待用户确认后开始实施！** 📋

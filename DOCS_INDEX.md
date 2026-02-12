@@ -41,6 +41,9 @@
 | **[PHASE2B_DESIGN.md](./PHASE2B_DESIGN.md)** | Phase 2-B 用户体验改进设计 | ✅ 已完成 |
 | **[PHASE2B_COMPLETION_REPORT.md](./PHASE2B_COMPLETION_REPORT.md)** | Phase 2-B 完成报告 | ✅ 已完成 |
 | **[PHASE2B_PROBLEMS_AND_FIXES.md](./PHASE2B_PROBLEMS_AND_FIXES.md)** | Phase 2-B 问题与修复记录 | ✅ 已完成 |
+| **[INCREMENTAL_IMPROVEMENTS_2026-02-12.md](./INCREMENTAL_IMPROVEMENTS_2026-02-12.md)** | 增量改进记录（Bug修复+功能增强）| ✅ 已完成 |
+| **[MENU_ENHANCEMENT.md](./MENU_ENHANCEMENT.md)** | 菜单功能增强记录 | ✅ 已完成 + 📝 待实施 |
+| **[AUTHOR_SELECTION_ENHANCEMENT_ANALYSIS.md](./AUTHOR_SELECTION_ENHANCEMENT_ANALYSIS.md)** | 作者选择增强分析（需求1+2）| 📝 分析完成 |
 | **[python/IMPLEMENTATION_STATUS.md](./python/IMPLEMENTATION_STATUS.md)** | 项目实施状态总览 | 🔄 持续更新 |
 
 ### 🧪 测试文档
@@ -244,6 +247,38 @@ PROJECT_OVERVIEW.md (入口)
   - 问题记录模板
   - 测试报告模板
 
+### INCREMENTAL_IMPROVEMENTS_2026-02-12.md
+- **内容**: 2026-02-12 增量改进详细记录
+- **长度**: ~1400 行
+- **关键信息**:
+  - 4 个核心问题修复（INC-001 到 INC-004）
+  - 1 个需求分析（INC-005）
+  - 每个问题的完整分析、解决方案、测试验证
+  - 代码变更统计（+145 行净代码）
+  - 性能改进数据（99% 时间节省）
+  - 用户价值评估
+
+### MENU_ENHANCEMENT.md
+- **内容**: 菜单功能增强记录
+- **长度**: ~300 行
+- **关键信息**:
+  - 6 个已完成的改进点（返回功能）
+  - 2 个待实施的增强计划（视觉标记 + 帖子数量）
+  - 详细的实现方案和代码示例
+  - 用户体验改进说明
+  - 测试验证清单
+
+### AUTHOR_SELECTION_ENHANCEMENT_ANALYSIS.md
+- **内容**: 作者选择增强需求分析
+- **长度**: ~1200 行
+- **关键信息**:
+  - 2 个用户需求详细分析
+  - 多个备选方案对比（带评分）
+  - 推荐方案技术实现细节
+  - 完整代码示例（可直接使用）
+  - 测试计划（11 个测试用例）
+  - 实施清单（预计 3-4 小时）
+
 ---
 
 ## 📝 文档维护
@@ -323,6 +358,7 @@ PROJECT_OVERVIEW.md (入口)
 | 1.1 | 2026-02-11 | 添加 Phase 2 完成报告和问题修复文档 |
 | 1.2 | 2026-02-11 | 添加 Phase 2-B 设计和测试文档 |
 | 1.3 | 2026-02-11 | 添加 Phase 2-B 完成报告和问题修复文档 |
+| 1.4 | 2026-02-12 | 添加增量改进记录、菜单增强记录、作者选择增强分析 |
 
 ---
 
