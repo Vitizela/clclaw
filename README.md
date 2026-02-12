@@ -95,9 +95,15 @@ python main.py
 - **[GIT_GUIDE.md](./GIT_GUIDE.md)** - Git 使用指南
 
 ### 测试与质量
+
+**Phase 1**:
 - **[PHASE1_TESTING.md](./PHASE1_TESTING.md)** - Phase 1 测试指南
 - **[PHASE1_COMPLETED.md](./PHASE1_COMPLETED.md)** - Phase 1 完成总结
 - **[PHASE1_BUGS_FIXED.md](./PHASE1_BUGS_FIXED.md)** - Bug 修复记录
+
+**Phase 2**:
+- **[PHASE2_TESTING.md](./PHASE2_TESTING.md)** - Phase 2 测试指南
+- **[PHASE2_API_MAPPING.md](./PHASE2_API_MAPPING.md)** - Playwright API 对照表
 
 ---
 

@@ -354,6 +354,9 @@ logging:
 # ==================== 高级设置 ====================
 advanced:
   parallel_downloads: 5
+  download_retry: 3          # 下载重试次数
+  download_timeout: 30       # 单个文件下载超时（秒）
+  rate_limit_delay: 0.5      # 请求间隔（秒），防反爬
   browser_headless: true
   user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
   proxy: null
@@ -861,6 +864,357 @@ class Archiver:
         """归档单个帖子"""
         # 实现逻辑...
         pass
+```
+
+##### src/scraper/utils.py（关键工具函数）
+```python
+"""爬虫工具函数（与 Node.js 版本保持一致）"""
+import re
+import json
+import hashlib
+from pathlib import Path
+from datetime import datetime
+from typing import Optional
+
+def sanitize_filename(name: str, max_length: int = 100) -> str:
+    """文件名安全化（与 Node.js 版本完全一致）
+
+    重要：此函数必须与 Node.js 版本完全一致，确保生成相同的文件路径
+    Node.js 代码：name.replace(/[<>:"/\\|?*]/g, '_').substring(0, 100)
+
+    Args:
+        name: 原始文件名
+        max_length: 最大长度（默认 100，与 Node.js 一致）
+
+    Returns:
+        安全的文件名
+
+    Examples:
+        >>> sanitize_filename("正常标题")
+        '正常标题'
+        >>> sanitize_filename("标题<含>特殊:字符")
+        '标题_含_特殊_字符'
+        >>> sanitize_filename("a" * 150)
+        'aaa...aaa'  # 100 个字符
+    """
+    # 与 Node.js 正则 /[<>:"/\\|?*]/g 完全一致
+    safe_name = re.sub(r'[<>:"/\\|?*]', '_', name)
+
+    # 截断到指定长度（注意处理 UTF-8 多字节字符）
+    if len(safe_name) > max_length:
+        safe_name = safe_name[:max_length]
+
+    # 去除首尾空格和点（Windows 文件名限制）
+    safe_name = safe_name.strip(' .')
+
+    # 如果处理后为空，使用默认名称
+    return safe_name if safe_name else 'untitled'
+
+
+def check_post_exists(post_dir: Path, post_url: str) -> bool:
+    """改进的增量检查逻辑
+
+    检查策略（优先级从高到低）：
+    1. 目录不存在 -> 需要归档
+    2. 目录存在但缺少完整性标记 (.complete) -> 可能下载失败，重新归档
+    3. 目录存在但缺少核心文件 (index.md) -> 重新归档
+    4. 完整性标记存在，且 URL hash 匹配 -> 跳过
+
+    Args:
+        post_dir: 帖子目录路径
+        post_url: 帖子 URL
+
+    Returns:
+        True: 已存在且完整，跳过
+        False: 不存在或不完整，需要归档
+    """
+    if not post_dir.exists():
+        return False
+
+    # 检查完整性标记
+    complete_marker = post_dir / '.complete'
+    if not complete_marker.exists():
+        # 可能是下载失败的残留目录
+        return False
+
+    # 检查核心文件
+    index_md = post_dir / 'index.md'
+    if not index_md.exists():
+        return False
+
+    # 验证 URL 匹配（防止标题冲突导致的覆盖）
+    try:
+        with open(complete_marker, 'r', encoding='utf-8') as f:
+            marker_data = json.load(f)
+
+        # 计算 URL hash
+        url_hash = hashlib.md5(post_url.encode()).hexdigest()
+
+        if marker_data.get('url_hash') == url_hash:
+            return True
+        else:
+            # URL 不匹配，可能是标题冲突
+            return False
+    except (json.JSONDecodeError, KeyError):
+        # 标记文件损坏
+        return False
+
+
+def mark_post_complete(post_dir: Path, post_url: str, metadata: dict) -> None:
+    """标记帖子归档完成
+
+    Args:
+        post_dir: 帖子目录路径
+        post_url: 帖子 URL
+        metadata: 帖子元数据（标题、作者、日期等）
+    """
+    complete_marker = post_dir / '.complete'
+
+    marker_data = {
+        'completed_at': datetime.now().isoformat(),
+        'url': post_url,
+        'url_hash': hashlib.md5(post_url.encode()).hexdigest(),
+        'title': metadata.get('title', ''),
+        'author': metadata.get('author', ''),
+        'version': '2.0'  # 标记版本，便于未来升级
+    }
+
+    with open(complete_marker, 'w', encoding='utf-8') as f:
+        json.dump(marker_data, f, ensure_ascii=False, indent=2)
+
+
+def build_post_path(base_dir: Path, author: str, date: datetime, title: str) -> Path:
+    """构建帖子存储路径（与 Node.js 一致）
+
+    路径结构：{base_dir}/{author}/{year}/{month}/{title}/
+
+    Args:
+        base_dir: 归档根目录
+        author: 作者名
+        date: 发帖日期
+        title: 帖子标题
+
+    Returns:
+        完整的帖子目录路径
+    """
+    year = str(date.year)
+    month = str(date.month).zfill(2)
+
+    post_dir = (
+        base_dir
+        / sanitize_filename(author)
+        / year
+        / month
+        / sanitize_filename(title)
+    )
+
+    return post_dir
+```
+
+##### src/utils/logger.py（统一日志系统）
+```python
+"""统一日志系统"""
+import logging
+from pathlib import Path
+from logging.handlers import RotatingFileHandler
+from typing import Optional
+
+_logger_instance: Optional[logging.Logger] = None
+
+def setup_logger(config: dict) -> logging.Logger:
+    """设置统一日志系统
+
+    Args:
+        config: 配置字典
+
+    Returns:
+        配置好的 logger 实例
+    """
+    global _logger_instance
+
+    if _logger_instance is not None:
+        return _logger_instance
+
+    log_config = config.get('logging', {})
+    log_file = Path(log_config.get('file', 'logs/scraper.log'))
+    log_file.parent.mkdir(parents=True, exist_ok=True)
+
+    logger = logging.getLogger('forum_scraper')
+    logger.setLevel(getattr(logging, log_config.get('level', 'INFO')))
+
+    # 避免重复添加 handler
+    if logger.handlers:
+        return logger
+
+    # 文件处理器（带日志轮转）
+    file_handler = RotatingFileHandler(
+        log_file,
+        maxBytes=log_config.get('max_size_mb', 50) * 1024 * 1024,
+        backupCount=log_config.get('backup_count', 5),
+        encoding='utf-8'
+    )
+
+    # 控制台处理器
+    console_handler = logging.StreamHandler()
+
+    # 格式化器
+    formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+    file_handler.setFormatter(formatter)
+    console_handler.setFormatter(formatter)
+
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+
+    _logger_instance = logger
+    return logger
+
+
+def get_logger() -> logging.Logger:
+    """获取 logger 实例
+
+    Returns:
+        logger 实例
+
+    Raises:
+        RuntimeError: 如果 logger 未初始化
+    """
+    if _logger_instance is None:
+        raise RuntimeError("Logger 未初始化，请先调用 setup_logger()")
+    return _logger_instance
+```
+
+##### 完整的 Archiver 类示例（包含增量检查）
+```python
+"""归档器完整实现示例"""
+from playwright.async_api import async_playwright, Page
+from pathlib import Path
+from typing import List, Dict
+from datetime import datetime
+import asyncio
+
+from .utils import sanitize_filename, check_post_exists, mark_post_complete, build_post_path
+from .extractor import Extractor
+from .downloader import Downloader
+from ..utils.logger import get_logger
+
+class Archiver:
+    """帖子归档器（完整版）"""
+
+    def __init__(self, config: dict):
+        self.config = config
+        self.forum_url = config['forum']['section_url']
+        self.timeout = config['forum']['timeout'] * 1000
+        self.archive_path = Path(config['storage']['archive_path'])
+        self.logger = get_logger()
+
+        self.extractor = Extractor(config)
+        self.downloader = Downloader(config)
+
+    async def archive_authors(self, authors: List[str]) -> dict:
+        """归档指定作者的所有帖子
+
+        Args:
+            authors: 作者名列表
+
+        Returns:
+            统计信息: {'total': int, 'new': int, 'skipped': int, 'failed': int}
+        """
+        stats = {'total': 0, 'new': 0, 'skipped': 0, 'failed': 0}
+
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(
+                headless=self.config['advanced']['browser_headless']
+            )
+            page = await browser.new_page()
+
+            try:
+                # 1. 收集帖子链接
+                self.logger.info(f"开始收集作者帖子: {', '.join(authors)}")
+                post_infos = await self._collect_posts(page, authors)
+                stats['total'] = len(post_infos)
+                self.logger.info(f"找到 {stats['total']} 个帖子")
+
+                # 2. 逐一归档
+                for i, post_info in enumerate(post_infos, 1):
+                    self.logger.info(f"处理 ({i}/{stats['total']}): {post_info['title']}")
+
+                    try:
+                        result = await self._archive_post(page, post_info)
+                        if result == 'new':
+                            stats['new'] += 1
+                        elif result == 'skipped':
+                            stats['skipped'] += 1
+                    except Exception as e:
+                        stats['failed'] += 1
+                        self.logger.error(f"归档失败: {post_info['url']}", exc_info=True)
+
+                    # 防反爬延迟
+                    await asyncio.sleep(self.config['advanced']['rate_limit_delay'])
+
+            finally:
+                await browser.close()
+
+        self.logger.info(
+            f"归档完成: 总计 {stats['total']}, "
+            f"新增 {stats['new']}, 跳过 {stats['skipped']}, 失败 {stats['failed']}"
+        )
+
+        return stats
+
+    async def _archive_post(self, page: Page, post_info: dict) -> str:
+        """归档单个帖子
+
+        Returns:
+            'new': 新归档
+            'skipped': 已存在跳过
+
+        Raises:
+            Exception: 归档失败时抛出
+        """
+        # 提取元数据
+        await page.goto(post_info['url'], wait_until='domcontentloaded', timeout=self.timeout)
+        metadata = await self.extractor.extract_metadata(page)
+
+        # 构建存储路径
+        post_dir = build_post_path(
+            self.archive_path,
+            metadata['author'],
+            metadata['date'],
+            metadata['title']
+        )
+
+        # 增量检查
+        if check_post_exists(post_dir, post_info['url']):
+            self.logger.info(f"[跳过] 已存在: {metadata['title']}")
+            return 'skipped'
+
+        self.logger.info(f"[新增] 归档: {metadata['title']}")
+
+        # 创建目录结构
+        post_dir.mkdir(parents=True, exist_ok=True)
+        (post_dir / 'photo').mkdir(exist_ok=True)
+        (post_dir / 'video').mkdir(exist_ok=True)
+
+        # 提取内容
+        content = await self.extractor.extract_content(page)
+        media_list = await self.extractor.extract_media(page)
+
+        # 下载媒体
+        download_stats = await self.downloader.download_batch(
+            media_list,
+            post_dir
+        )
+
+        # 生成 Markdown
+        await self._generate_markdown(post_dir, metadata, content, download_stats)
+
+        # 标记完成
+        mark_post_complete(post_dir, post_info['url'], metadata)
+
+        return 'new'
 ```
 
 #### 5.2.4 验收标准

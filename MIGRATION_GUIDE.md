@@ -1239,7 +1239,515 @@ python main.py
 **预计时间**: 5-7 天
 **状态**: 🔴 未开始
 
-详细实施步骤将在 Phase 1 完成后提供。
+---
+
+### ⚠️ 关键注意事项（必读！）
+
+在开始 Phase 2 实施前，请务必阅读以下注意事项：
+
+#### 1. **文件名安全化必须与 Node.js 完全一致** 🔴 P0
+
+**为什么重要**: 如果生成的文件名不一致，会导致重复归档或找不到已有内容。
+
+**Node.js 原始逻辑**:
+```javascript
+function sanitizeFilename(name) {
+    return name.replace(/[<>:"/\\|?*]/g, '_').substring(0, 100);
+}
+```
+
+**Python 实现（必须完全一致）**:
+```python
+def sanitize_filename(name: str, max_length: int = 100) -> str:
+    # 与 Node.js 正则 /[<>:"/\\|?*]/g 完全一致
+    safe_name = re.sub(r'[<>:"/\\|?*]', '_', name)
+
+    # 截断到指定长度
+    if len(safe_name) > max_length:
+        safe_name = safe_name[:max_length]
+
+    # 去除首尾空格和点
+    safe_name = safe_name.strip(' .')
+
+    return safe_name if safe_name else 'untitled'
+```
+
+**测试验证**: 见 [PHASE2_TESTING.md](./PHASE2_TESTING.md) Test 1
+
+---
+
+#### 2. **Playwright API 差异** 🔴 P0
+
+Python 和 Node.js 的 Playwright API 有重要差异，详见：[PHASE2_API_MAPPING.md](./PHASE2_API_MAPPING.md)
+
+**最关键的差异**:
+- `page.$$(selector)` → `page.query_selector_all(selector)`
+- `page.$$eval()` → `page.eval_on_selector_all()`
+- `page.waitForNavigation()` → `page.wait_for_load_state()`
+- 驼峰命名 → 下划线命名
+- 对象参数 → 关键字参数
+
+**示例对比**: 见 API 映射文档
+
+---
+
+#### 3. **增量检查逻辑改进** 🟡 P1
+
+Node.js 版本只检查目录存在性，有以下问题：
+- 下载失败的帖子会被永久跳过
+- 标题冲突可能导致内容覆盖
+
+**改进方案**: 使用完整性标记 + URL hash 验证
+
+详细设计见 `ADR-002_Python_Migration_Plan.md` 第 5.2.3 节
+
+---
+
+#### 4. **路径计算陷阱** 🟡 P1
+
+Phase 1 的 Bug #1 就是路径计算错误，Phase 2 需特别注意：
+
+```python
+# 在 Archiver 中
+class Archiver:
+    def __init__(self, config):
+        # __file__ 是 .../python/src/scraper/archiver.py
+        # parent.parent.parent 到达 python/ 目录
+        self.base_dir = Path(__file__).parent.parent.parent
+
+        # 归档路径相对于项目根目录
+        self.archive_path = (self.base_dir.parent / config['storage']['archive_path']).resolve()
+
+        # 添加断言验证
+        assert self.archive_path.parent.exists(), \
+            f"归档路径父目录不存在: {self.archive_path.parent}"
+```
+
+---
+
+#### 5. **日志和错误处理统一** 🟡 P1
+
+所有 Scraper 组件必须使用统一的日志系统：
+
+```python
+from src.utils.logger import get_logger
+
+class Archiver:
+    def __init__(self, config):
+        self.logger = get_logger()
+
+    async def _archive_post(self, page, post_info):
+        try:
+            # ... 归档逻辑
+            self.logger.info(f"成功归档: {post_info['title']}")
+        except Exception as e:
+            self.logger.error(f"归档失败: {post_info['url']}", exc_info=True)
+            raise
+```
+
+详细设计见 `ADR-002_Python_Migration_Plan.md` 第 5.2.3 节
+
+---
+
+#### 6. **性能要求** 🟢 P2
+
+Python 版本不应慢于 Node.js 20% 以上。
+
+**优化要点**:
+- 使用异步并发下载（`asyncio.gather`）
+- 浏览器 headless 模式
+- 合理的延迟设置（`rate_limit_delay`）
+
+详细测试见 [PHASE2_TESTING.md](./PHASE2_TESTING.md) Test 7
+
+---
+
+### 前置准备
+
+#### 1. 更新依赖
+
+```bash
+cd /home/ben/gemini-work/gemini-t66y/python
+
+# 安装 Phase 2 依赖
+pip install playwright aiohttp beautifulsoup4 tqdm requests
+
+# 安装 Playwright 浏览器
+playwright install chromium
+
+# 验证安装
+python check_dependencies.py
+```
+
+#### 2. 创建必要的工具模块
+
+```bash
+# 创建文件
+touch src/scraper/__init__.py
+touch src/scraper/archiver.py
+touch src/scraper/extractor.py
+touch src/scraper/downloader.py
+touch src/scraper/follower.py
+touch src/scraper/utils.py
+```
+
+---
+
+### 实施步骤
+
+#### 第一步: 实现工具函数（src/scraper/utils.py）
+
+**代码**: 见 `ADR-002_Python_Migration_Plan.md` 第 5.2.3 节
+
+**必须实现**:
+- `sanitize_filename()` - 文件名安全化
+- `check_post_exists()` - 增量检查
+- `mark_post_complete()` - 完整性标记
+- `build_post_path()` - 路径构建
+
+**测试**: 运行 `PHASE2_TESTING.md` Test 1, 3
+
+---
+
+#### 第二步: 实现 Extractor 类（src/scraper/extractor.py）
+
+```python
+"""内容提取器"""
+from playwright.async_api import Page
+from bs4 import BeautifulSoup
+from datetime import datetime
+from typing import Dict, List
+import re
+
+class Extractor:
+    """帖子内容提取器"""
+
+    def __init__(self, config: dict):
+        self.config = config
+
+    async def extract_metadata(self, page: Page) -> Dict:
+        """提取帖子元数据
+
+        Returns:
+            {
+                'title': str,
+                'author': str,
+                'date': datetime,
+                'url': str
+            }
+        """
+        # 提取标题
+        title_el = await page.wait_for_selector('h4.f16', timeout=10000)
+        title = (await title_el.text_content()).strip()
+
+        # 提取作者
+        author_el = await page.wait_for_selector('.tr1.do_not_catch b', timeout=10000)
+        author = (await author_el.text_content()).strip()
+
+        # 提取时间戳
+        timestamp_el = await page.wait_for_selector('span[data-timestamp]', timeout=10000)
+        timestamp = await timestamp_el.get_attribute('data-timestamp')
+        date = datetime.fromtimestamp(int(timestamp))
+
+        return {
+            'title': title,
+            'author': author,
+            'date': date,
+            'url': page.url
+        }
+
+    async def extract_content(self, page: Page) -> str:
+        """提取帖子正文内容
+
+        Returns:
+            清理后的文本内容
+        """
+        content_el = await page.wait_for_selector('.tpc_content', timeout=10000)
+        raw_html = await content_el.inner_html()
+
+        # 使用 BeautifulSoup 清理 HTML
+        soup = BeautifulSoup(raw_html, 'html.parser')
+
+        # 移除脚本和样式
+        for script in soup(['script', 'style']):
+            script.decompose()
+
+        # 获取文本
+        text = soup.get_text()
+
+        # 清理多余空白
+        lines = (line.strip() for line in text.splitlines())
+        text = '\n'.join(line for line in lines if line)
+
+        return text
+
+    async def extract_media(self, page: Page) -> List[Dict]:
+        """提取图片和视频链接
+
+        Returns:
+            [{'type': 'image'|'video', 'url': str, 'filename': str}, ...]
+        """
+        media_list = []
+
+        # 提取图片
+        img_els = await page.query_selector_all('.tpc_content img[src]')
+        for img_el in img_els:
+            src = await img_el.get_attribute('src')
+            if src and not src.startswith('data:'):
+                filename = src.split('/')[-1].split('?')[0]
+                media_list.append({
+                    'type': 'image',
+                    'url': src,
+                    'filename': filename
+                })
+
+        # 提取视频（如果有）
+        video_els = await page.query_selector_all('.tpc_content video source[src], .tpc_content a[href*=".mp4"]')
+        for video_el in video_els:
+            src = await video_el.get_attribute('src') or await video_el.get_attribute('href')
+            if src:
+                filename = src.split('/')[-1].split('?')[0]
+                media_list.append({
+                    'type': 'video',
+                    'url': src,
+                    'filename': filename
+                })
+
+        return media_list
+```
+
+**测试**: 运行 `PHASE2_TESTING.md` Test 5
+
+---
+
+#### 第三步: 实现 Downloader 类（src/scraper/downloader.py）
+
+```python
+"""媒体下载器"""
+import aiohttp
+import asyncio
+from pathlib import Path
+from typing import List, Dict
+from asyncio import Semaphore
+from tqdm.asyncio import tqdm_asyncio
+
+from ..utils.logger import get_logger
+
+class Downloader:
+    """媒体文件下载器"""
+
+    def __init__(self, config: dict):
+        self.config = config
+        self.logger = get_logger()
+
+        # 并发控制
+        self.max_concurrent = config['advanced']['parallel_downloads']
+        self.semaphore = Semaphore(self.max_concurrent)
+
+        # 下载设置
+        self.timeout = aiohttp.ClientTimeout(
+            total=config['advanced']['download_timeout']
+        )
+        self.retry = config['advanced']['download_retry']
+
+    async def download_batch(self, media_list: List[Dict], post_dir: Path) -> Dict:
+        """批量下载媒体文件
+
+        Args:
+            media_list: 媒体列表
+            post_dir: 帖子目录
+
+        Returns:
+            {'success': int, 'failed': int, 'skipped': int, 'errors': List[str]}
+        """
+        stats = {'success': 0, 'failed': 0, 'skipped': 0, 'errors': []}
+
+        # 过滤需要下载的类型
+        download_images = self.config['storage']['download']['images']
+        download_videos = self.config['storage']['download']['videos']
+
+        filtered = []
+        for media in media_list:
+            if media['type'] == 'image' and download_images:
+                filtered.append(media)
+            elif media['type'] == 'video' and download_videos:
+                filtered.append(media)
+            else:
+                stats['skipped'] += 1
+
+        if not filtered:
+            return stats
+
+        # 并发下载
+        async def download_with_semaphore(media_info):
+            async with self.semaphore:
+                try:
+                    await self._download_single(media_info, post_dir)
+                    stats['success'] += 1
+                except Exception as e:
+                    stats['failed'] += 1
+                    error_msg = f"{media_info['url']}: {str(e)}"
+                    stats['errors'].append(error_msg)
+                    self.logger.error(f"下载失败: {error_msg}")
+
+        tasks = [download_with_semaphore(m) for m in filtered]
+
+        # 使用 tqdm 显示进度
+        await tqdm_asyncio.gather(*tasks, desc="下载媒体")
+
+        return stats
+
+    async def _download_single(self, media_info: Dict, post_dir: Path) -> None:
+        """下载单个媒体文件
+
+        Args:
+            media_info: {'type': ..., 'url': ..., 'filename': ...}
+            post_dir: 帖子目录
+
+        Raises:
+            Exception: 下载失败
+        """
+        url = media_info['url']
+        filename = media_info['filename']
+        media_type = media_info['type']
+
+        # 确定保存路径
+        if media_type == 'image':
+            save_dir = post_dir / 'photo'
+        elif media_type == 'video':
+            save_dir = post_dir / 'video'
+        else:
+            raise ValueError(f"未知媒体类型: {media_type}")
+
+        save_dir.mkdir(exist_ok=True)
+        save_path = save_dir / filename
+
+        # 如果文件已存在，跳过
+        if save_path.exists():
+            self.logger.debug(f"文件已存在，跳过: {filename}")
+            return
+
+        # 下载文件（带重试）
+        for attempt in range(self.retry):
+            try:
+                async with aiohttp.ClientSession(timeout=self.timeout) as session:
+                    async with session.get(url) as response:
+                        response.raise_for_status()
+
+                        # 检查文件大小
+                        content_length = response.headers.get('Content-Length')
+                        if content_length:
+                            size_mb = int(content_length) / (1024 * 1024)
+                            max_size = self.config['storage']['download']['max_file_size_mb']
+                            if size_mb > max_size:
+                                raise ValueError(f"文件过大: {size_mb:.1f}MB > {max_size}MB")
+
+                        # 写入文件
+                        with open(save_path, 'wb') as f:
+                            async for chunk in response.content.iter_chunked(8192):
+                                f.write(chunk)
+
+                self.logger.debug(f"下载成功: {filename}")
+                return
+
+            except Exception as e:
+                if attempt == self.retry - 1:
+                    # 最后一次尝试仍失败
+                    raise
+                else:
+                    self.logger.warning(f"下载失败，重试 {attempt+1}/{self.retry}: {url}")
+                    await asyncio.sleep(1)
+```
+
+---
+
+#### 第四步: 实现 Archiver 类（src/scraper/archiver.py）
+
+**代码**: 见 `ADR-002_Python_Migration_Plan.md` 第 5.2.3 节（完整的 Archiver 类示例）
+
+**关键方法**:
+- `archive_authors()` - 主入口
+- `_collect_posts()` - 收集帖子链接
+- `_archive_post()` - 归档单个帖子
+- `_generate_markdown()` - 生成 Markdown 文件
+
+**测试**: 运行 `PHASE2_TESTING.md` Test 4, 6
+
+---
+
+#### 第五步: 菜单集成
+
+修改 `src/menu/main_menu.py`，添加 Python 爬虫调用：
+
+```python
+def _run_update(self) -> None:
+    """立即更新所有作者"""
+    # 检查是否使用 Python 爬虫
+    use_python = self.config.get('experimental', {}).get('use_python_scraper', False)
+
+    if use_python:
+        # Python 版本
+        self._run_update_python()
+    else:
+        # Node.js 版本（原有逻辑）
+        self._run_update_nodejs()
+
+def _run_update_python(self) -> None:
+    """Python 版本更新"""
+    import asyncio
+    from src.scraper.archiver import Archiver
+
+    self.console.print(f"\n[cyan]正在使用 Python 爬虫更新...[/cyan]\n")
+
+    authors = [a['name'] for a in self.config['followed_authors']]
+
+    try:
+        archiver = Archiver(self.config)
+        stats = asyncio.run(archiver.archive_authors(authors))
+
+        self.console.print(f"\n[green]✓ 更新完成[/green]")
+        self.console.print(f"  总计: {stats['total']}")
+        self.console.print(f"  新增: {stats['new']}")
+        self.console.print(f"  跳过: {stats['skipped']}")
+        self.console.print(f"  失败: {stats['failed']}")
+    except Exception as e:
+        self.console.print(f"\n[red]✗ 更新失败: {str(e)}[/red]")
+
+        # 如果配置了回退
+        if self.config.get('experimental', {}).get('fallback_to_nodejs', False):
+            self.console.print("[yellow]⚠️  切换到 Node.js 版本重试...[/yellow]")
+            self._run_update_nodejs()
+    finally:
+        questionary.press_any_key_to_continue("按任意键继续...").ask()
+```
+
+**测试**: 运行 `PHASE2_TESTING.md` Test 8
+
+---
+
+### 验收标准
+
+完成 Phase 2 后，运行以下验收测试：
+
+```bash
+cd /home/ben/gemini-work/gemini-t66y/python
+
+# 运行完整测试套件
+pytest tests/phase2/ -v
+
+# 运行一致性对比测试
+python validate_phase2.py
+
+# 运行性能基准测试
+python benchmark_phase2.py
+```
+
+**必须通过**:
+- ✅ 所有 P0 测试（文件名、收集、提取）
+- ✅ 性能测试（不慢于 Node.js 120%）
+- ✅ 完整归档流程测试
+
+**文档**: 详见 [PHASE2_TESTING.md](./PHASE2_TESTING.md)
 
 ---
 
