@@ -91,14 +91,17 @@ class MainMenu:
     def _follow_author(self) -> None:
         """关注新作者"""
         self.console.print("\n[bold]🔍 关注新作者[/bold]\n")
+        self.console.print("[dim]提示: 按 ESC 或留空可返回上级菜单[/dim]\n")
 
         post_url = questionary.text(
-            "请输入帖子 URL:",
+            "请输入帖子 URL (留空返回):",
             style=self.custom_style,
-            validate=lambda x: len(x) > 0
+            validate=lambda x: True  # 允许空输入以返回
         ).ask()
 
-        if not post_url:
+        if not post_url or not post_url.strip():
+            self.console.print("[yellow]已取消操作[/yellow]")
+            questionary.press_any_key_to_continue("\n按任意键返回...").ask()
             return
 
         self.console.print(f"\n[cyan]正在调用 Node.js 脚本处理...[/cyan]\n")
@@ -168,12 +171,13 @@ class MainMenu:
                         questionary.Choice(f"⚡ 使用上次的选择（{len(valid_last_selected)} 位作者）", value='last'),
                         questionary.Choice("🔄 重新选择作者", value='reselect'),
                         questionary.Choice("📚 更新所有作者", value='all'),
+                        questionary.Choice("← 返回", value='cancel'),
                     ],
                     style=self.custom_style,
                     default='last'
                 ).ask()
 
-                if quick_choice is None:  # 用户取消
+                if quick_choice is None or quick_choice == 'cancel':  # 用户取消或选择返回
                     return
 
                 if quick_choice == 'last':
@@ -233,24 +237,26 @@ class MainMenu:
                 questionary.Choice("📄 前 10 页（约 500 篇）", value=10),
                 questionary.Choice("📚 全部页面（可能很多）", value=None),
                 questionary.Choice("⚙️  自定义页数", value='custom'),
+                questionary.Choice("← 返回", value='cancel'),
             ],
             style=self.custom_style,
             default=1  # 使用 value 而不是 title
         ).ask()
 
-        if page_options is None:  # 用户取消
+        if page_options is None or page_options == 'cancel':  # 用户取消或选择返回
             return
 
         # 处理自定义页数
         max_pages = page_options
         if page_options == 'custom':
+            self.console.print("[dim]提示: 留空表示全部页面，按 ESC 返回[/dim]")
             custom_pages = questionary.text(
-                "请输入页数（留空表示全部）:",
-                validate=lambda x: x == '' or (x.isdigit() and int(x) > 0) or "请输入正整数",
+                "请输入页数（留空=全部）:",
+                validate=lambda x: x == '' or (x.isdigit() and int(x) > 0) or "请输入正整数或留空",
                 style=self.custom_style
             ).ask()
 
-            if custom_pages is None:  # 用户取消
+            if custom_pages is None:  # 用户按 ESC 取消
                 return
             elif custom_pages == '':
                 max_pages = None
@@ -446,6 +452,7 @@ class MainMenu:
         """修改论坛 URL"""
         current = self.config['forum']['section_url']
         self.console.print(f"当前 URL: [cyan]{current}[/cyan]")
+        self.console.print("[dim]提示: 按 ESC 取消修改[/dim]\n")
 
         new_url = questionary.text(
             "新 URL:",
@@ -453,10 +460,14 @@ class MainMenu:
             style=self.custom_style
         ).ask()
 
-        if new_url and new_url != current:
+        if new_url is None:  # 用户按 ESC 取消
+            self.console.print("[yellow]已取消修改[/yellow]")
+        elif new_url and new_url != current:
             self.config['forum']['section_url'] = new_url
             self.config_manager.save(self.config)
             self.console.print("[green]✓ 已更新[/green]")
+        else:
+            self.console.print("[dim]未修改[/dim]")
 
         questionary.press_any_key_to_continue("\n按任意键继续...").ask()
 
@@ -464,6 +475,7 @@ class MainMenu:
         """修改归档路径"""
         current = self.config['storage']['archive_path']
         self.console.print(f"当前路径: [cyan]{current}[/cyan]")
+        self.console.print("[dim]提示: 按 ESC 取消修改[/dim]\n")
 
         new_path = questionary.text(
             "新路径:",
@@ -471,10 +483,14 @@ class MainMenu:
             style=self.custom_style
         ).ask()
 
-        if new_path and new_path != current:
+        if new_path is None:  # 用户按 ESC 取消
+            self.console.print("[yellow]已取消修改[/yellow]")
+        elif new_path and new_path != current:
             self.config['storage']['archive_path'] = new_path
             self.config_manager.save(self.config)
             self.console.print("[green]✓ 已更新[/green]")
+        else:
+            self.console.print("[dim]未修改[/dim]")
 
         questionary.press_any_key_to_continue("\n按任意键继续...").ask()
 
