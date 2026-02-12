@@ -147,34 +147,81 @@ class MainMenu:
         show_author_table(self.config['followed_authors'])
         self.console.print()  # 空行
 
-        # Phase 2-B 需求 2: 多选作者界面
-        author_choices = []
-        for author in self.config['followed_authors']:
-            # 显示格式: "作者名 (帖子数 篇)"
-            label = f"{author['name']}"
-            total_posts = author.get('total_posts', 0)
-            if total_posts > 0:
-                label += f" ({total_posts} 篇)"
+        # 智能选择：检查是否有上次的选择
+        last_selected = self.config.get('user_preferences', {}).get('last_selected_authors', [])
+        remember_enabled = self.config.get('user_preferences', {}).get('remember_selection', True)
 
-            author_choices.append(
-                questionary.Choice(
-                    title=label,
-                    value=author,  # 保存完整的 author 对象
-                    checked=True   # 默认全选
+        selected_authors = None
+
+        # 如果有上次的选择且启用了记忆功能，提供快速选择
+        if last_selected and remember_enabled:
+            # 验证上次选择的作者是否仍在关注列表中
+            current_author_names = {a['name'] for a in self.config['followed_authors']}
+            valid_last_selected = [name for name in last_selected if name in current_author_names]
+
+            if valid_last_selected:
+                self.console.print(f"[dim]上次选择了 {len(valid_last_selected)} 位作者: {', '.join(valid_last_selected[:3])}{'...' if len(valid_last_selected) > 3 else ''}[/dim]\n")
+
+                quick_choice = questionary.select(
+                    "选择方式:",
+                    choices=[
+                        questionary.Choice(f"⚡ 使用上次的选择（{len(valid_last_selected)} 位作者）", value='last'),
+                        questionary.Choice("🔄 重新选择作者", value='reselect'),
+                        questionary.Choice("📚 更新所有作者", value='all'),
+                    ],
+                    style=self.custom_style,
+                    default='last'
+                ).ask()
+
+                if quick_choice is None:  # 用户取消
+                    return
+
+                if quick_choice == 'last':
+                    # 使用上次的选择
+                    selected_authors = [a for a in self.config['followed_authors'] if a['name'] in valid_last_selected]
+                    self.console.print(f"\n[green]✓ 已加载上次的选择（{len(selected_authors)} 位作者）[/green]\n")
+                elif quick_choice == 'all':
+                    # 选择所有作者
+                    selected_authors = self.config['followed_authors']
+                    self.console.print(f"\n[green]✓ 将更新所有作者（{len(selected_authors)} 位）[/green]\n")
+                # 如果选择 'reselect'，继续下面的多选界面
+
+        # 如果还没有选择作者（首次使用或选择重新选择），进入多选界面
+        if selected_authors is None:
+            # Phase 2-B 需求 2: 多选作者界面
+            author_choices = []
+            for author in self.config['followed_authors']:
+                # 显示格式: "作者名 (帖子数 篇)"
+                label = f"{author['name']}"
+                total_posts = author.get('total_posts', 0)
+                if total_posts > 0:
+                    label += f" ({total_posts} 篇)"
+
+                # 如果有上次选择，使用上次的选择作为默认；否则全选
+                if last_selected:
+                    checked = author['name'] in last_selected
+                else:
+                    checked = True
+
+                author_choices.append(
+                    questionary.Choice(
+                        title=label,
+                        value=author,  # 保存完整的 author 对象
+                        checked=checked
+                    )
                 )
-            )
 
-        selected_authors = questionary.checkbox(
-            "请选择要更新的作者（Space 勾选，Enter 确认）:",
-            choices=author_choices,
-            style=self.custom_style,
-            validate=lambda x: len(x) > 0 or "至少选择一位作者"
-        ).ask()
+            selected_authors = questionary.checkbox(
+                "请选择要更新的作者（Space 勾选，Enter 确认）:",
+                choices=author_choices,
+                style=self.custom_style,
+                validate=lambda x: len(x) > 0 or "至少选择一位作者"
+            ).ask()
 
-        if not selected_authors:
-            return
+            if not selected_authors:
+                return
 
-        self.console.print(f"\n[green]已选择 {len(selected_authors)} 位作者[/green]\n")
+            self.console.print(f"\n[green]已选择 {len(selected_authors)} 位作者[/green]\n")
 
         # Phase 2-B 需求 3: 设置下载页数
         page_options = questionary.select(
@@ -225,6 +272,9 @@ class MainMenu:
                 # Run async Python scraper
                 asyncio.run(self._run_python_scraper(selected_authors, max_pages))
 
+                # 保存本次选择的作者（用于下次快速选择）
+                self._save_author_selection(selected_authors)
+
                 # 更新完成后等待用户确认
                 questionary.press_any_key_to_continue("\n按任意键继续...").ask()
                 return
@@ -248,6 +298,9 @@ class MainMenu:
 
             # 同步配置（以防 Node.js 脚本有变更）
             self._sync_config_from_nodejs()
+
+            # 保存选择（Node.js 更新所有作者，所以保存所有）
+            self._save_author_selection(self.config['followed_authors'])
         else:
             self.console.print(f"\n[red]✗ 更新失败[/red]")
 
@@ -517,3 +570,28 @@ class MainMenu:
 
         except Exception as e:
             self.console.print(f"[yellow]⚠ 配置同步失败: {e}[/yellow]")
+
+    def _save_author_selection(self, selected_authors: list) -> None:
+        """保存用户选择的作者列表（用于下次快速选择）
+
+        Args:
+            selected_authors: 用户选择的作者列表（author对象列表）
+        """
+        try:
+            # 提取作者名列表
+            author_names = [author['name'] for author in selected_authors]
+
+            # 更新配置
+            if 'user_preferences' not in self.config:
+                self.config['user_preferences'] = {}
+
+            self.config['user_preferences']['last_selected_authors'] = author_names
+            self.config['user_preferences']['remember_selection'] = True
+
+            # 保存配置
+            self.config_manager.save(self.config)
+
+            self.console.print(f"[dim]✓ 已保存选择偏好（{len(author_names)} 位作者）[/dim]")
+        except Exception as e:
+            # 保存失败不影响主流程，只记录警告
+            self.console.print(f"[dim yellow]⚠ 保存选择失败: {e}[/dim yellow]")
