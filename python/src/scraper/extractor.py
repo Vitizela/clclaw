@@ -80,6 +80,11 @@ class PostExtractor:
         post_urls = []
         page_num = 1
 
+        # 检测 URL 类型：@作者名 页面不需要作者过滤
+        is_author_homepage = '/@' in author_url
+        if is_author_homepage:
+            self.logger.info("检测到作者主页格式，跳过作者过滤")
+
         while True:
             if max_pages and page_num > max_pages:
                 break
@@ -108,8 +113,8 @@ class PostExtractor:
                     if not link:
                         continue
 
-                    # 如果指定了作者名，检查作者列（TD3）
-                    if author_name:
+                    # 如果指定了作者名且不是作者主页，检查作者列（TD3）
+                    if author_name and not is_author_homepage:
                         cells = await row.query_selector_all('td')
                         if len(cells) >= 3:
                             # TD3 包含作者信息（格式：作者名 时间）
