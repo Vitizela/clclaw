@@ -31,22 +31,46 @@ def show_warning(message: str, title: str = "警告"):
     console.print(Panel(f"[yellow]{message}[/yellow]", title=f"⚠️  {title}", border_style="yellow"))
 
 
-def show_author_table(authors: List[Dict[str, Any]]):
-    """显示作者列表表格"""
+def show_author_table(authors: List[Dict[str, Any]], show_last_update: bool = True):
+    """显示作者列表表格
+
+    Args:
+        authors: 作者列表
+        show_last_update: 是否显示上次更新时间
+    """
     table = Table(title=f"当前关注 {len(authors)} 位作者")
-    table.add_column("序号", style="cyan", justify="right")
+    table.add_column("序号", style="cyan", justify="right", width=4)
     table.add_column("作者名", style="green")
-    table.add_column("关注日期", style="yellow")
-    table.add_column("帖子数", justify="right")
-    table.add_column("标签", style="magenta")
+
+    if show_last_update:
+        table.add_column("上次更新", style="yellow", width=16)
+
+    table.add_column("关注日期", style="magenta", width=10)
+    table.add_column("帖子数", justify="right", width=6)
+    table.add_column("标签", style="dim")
 
     for i, author in enumerate(authors, 1):
-        table.add_row(
+        row_data = [
             str(i),
             author['name'],
+        ]
+
+        if show_last_update:
+            last_update = author.get('last_update', 'N/A')
+            # 格式化时间：2026-02-11 22:28:01 -> 02-11 22:28
+            if last_update and last_update != 'N/A':
+                try:
+                    last_update = last_update[5:16]
+                except:
+                    pass
+            row_data.append(last_update)
+
+        row_data.extend([
             author.get('added_date', 'N/A'),
             str(author.get('total_posts', 0)),
             ', '.join(author.get('tags', []))
-        )
+        ])
+
+        table.add_row(*row_data)
 
     console.print(table)

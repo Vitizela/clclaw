@@ -6,7 +6,7 @@ from questionary import Style
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 from ..config.manager import ConfigManager
 from ..bridge.nodejs_bridge import NodeJSBridge
@@ -17,12 +17,12 @@ class MainMenu:
     """主菜单系统"""
 
     custom_style = Style([
-        ('qmark', 'fg:#673ab7 bold'),
+        ('qmark', 'fg:#FFD700 bold'),       # 明亮金黄色
         ('question', 'bold'),
-        ('answer', 'fg:#f44336 bold'),
-        ('pointer', 'fg:#673ab7 bold'),
-        ('highlighted', 'fg:#673ab7 bold'),
-        ('selected', 'fg:#cc5454'),
+        ('answer', 'fg:#4CAF50 bold'),      # 绿色（更清晰）
+        ('pointer', 'fg:#FFD700 bold'),     # 明亮金黄色
+        ('highlighted', 'fg:#FFD700 bold'), # 明亮金黄色（高亮）
+        ('selected', 'fg:#FFA500'),         # 橙黄色（已选项）
     ])
 
     def __init__(self, config: Dict[str, Any]):
@@ -134,28 +134,93 @@ class MainMenu:
         questionary.press_any_key_to_continue("\n按任意键返回...").ask()
 
     def _run_update(self) -> None:
-        """立即更新所有作者"""
-        self.console.print("\n[bold]🔄 立即更新[/bold]\n")
+        """立即更新作者（支持多选和页数设置）"""
+        self.console.print("\n[bold]🔄 选择要更新的作者[/bold]\n")
 
         if not self.config['followed_authors']:
             show_warning("暂无关注的作者，无需更新", "提示")
             questionary.press_any_key_to_continue("\n按任意键返回...").ask()
             return
 
-        confirm = questionary.confirm(
-            f"确认为 {len(self.config['followed_authors'])} 位作者执行更新？",
-            default=True,
-            style=self.custom_style
+        # Phase 2-B 需求 1: 显示作者列表
+        self.console.print("[cyan]当前关注的作者:[/cyan]\n")
+        show_author_table(self.config['followed_authors'])
+        self.console.print()  # 空行
+
+        # Phase 2-B 需求 2: 多选作者界面
+        author_choices = []
+        for author in self.config['followed_authors']:
+            # 显示格式: "作者名 (帖子数 篇)"
+            label = f"{author['name']}"
+            total_posts = author.get('total_posts', 0)
+            if total_posts > 0:
+                label += f" ({total_posts} 篇)"
+
+            author_choices.append(
+                questionary.Choice(
+                    title=label,
+                    value=author,  # 保存完整的 author 对象
+                    checked=True   # 默认全选
+                )
+            )
+
+        selected_authors = questionary.checkbox(
+            "请选择要更新的作者（Space 勾选，Enter 确认）:",
+            choices=author_choices,
+            style=self.custom_style,
+            validate=lambda x: len(x) > 0 or "至少选择一位作者"
         ).ask()
 
-        if not confirm:
+        if not selected_authors:
             return
+
+        self.console.print(f"\n[green]已选择 {len(selected_authors)} 位作者[/green]\n")
+
+        # Phase 2-B 需求 3: 设置下载页数
+        page_options = questionary.select(
+            "选择下载页数:",
+            choices=[
+                questionary.Choice("📄 仅第 1 页（约 50 篇，推荐测试）", value=1),
+                questionary.Choice("📄 前 3 页（约 150 篇）", value=3),
+                questionary.Choice("📄 前 5 页（约 250 篇）", value=5),
+                questionary.Choice("📄 前 10 页（约 500 篇）", value=10),
+                questionary.Choice("📚 全部页面（可能很多）", value=None),
+                questionary.Choice("⚙️  自定义页数", value='custom'),
+            ],
+            style=self.custom_style,
+            default="📄 仅第 1 页（约 50 篇，推荐测试）"
+        ).ask()
+
+        if page_options is None:  # 用户取消
+            return
+
+        # 处理自定义页数
+        max_pages = page_options
+        if page_options == 'custom':
+            custom_pages = questionary.text(
+                "请输入页数（留空表示全部）:",
+                validate=lambda x: x == '' or (x.isdigit() and int(x) > 0) or "请输入正整数",
+                style=self.custom_style
+            ).ask()
+
+            if custom_pages is None:  # 用户取消
+                return
+            elif custom_pages == '':
+                max_pages = None
+            else:
+                max_pages = int(custom_pages)
+
+        # 显示确认信息
+        page_desc = f"前 {max_pages} 页" if max_pages else "全部页面"
+        self.console.print(
+            f"\n[cyan]将为 {len(selected_authors)} 位作者更新 {page_desc}[/cyan]\n"
+        )
 
         # 检查是否使用 Python 爬虫
         use_python = self.config.get('experimental', {}).get('use_python_scraper', False)
 
         if use_python:
-            self.console.print(f"\n[cyan]🐍 使用 Python 爬虫更新...[/cyan]\n")
+            self.console.print(f"[cyan]🐍 使用 Python 爬虫更新...[/cyan]\n")
             try:
                 # Run async Python scraper
                 # Try to use existing event loop, or create new one
@@ -166,12 +231,12 @@ class MainMenu:
                     loop = asyncio.new_event_loop()
                     asyncio.set_event_loop(loop)
                     try:
-                        loop.run_until_complete(self._run_python_scraper())
+                        loop.run_until_complete(self._run_python_scraper(selected_authors, max_pages))
                     finally:
                         loop.close()
                 except RuntimeError:
                     # No event loop running, safe to use asyncio.run()
-                    asyncio.run(self._run_python_scraper())
+                    asyncio.run(self._run_python_scraper(selected_authors, max_pages))
                 return
             except Exception as e:
                 self.console.print(f"\n[red]✗ Python 爬虫失败: {str(e)}[/red]")
@@ -179,7 +244,11 @@ class MainMenu:
                 # Fall through to Node.js scraper
 
         # 使用 Node.js 爬虫（默认或回退）
-        self.console.print(f"\n[cyan]正在调用 Node.js 脚本更新...[/cyan]\n")
+        self.console.print(
+            f"[yellow]⚠ Node.js 爬虫不支持选择性更新和页数设置[/yellow]\n"
+            f"[yellow]  将更新所有作者的全部内容[/yellow]\n"
+        )
+        self.console.print(f"[cyan]正在调用 Node.js 脚本更新...[/cyan]\n")
 
         # 调用 Node.js 脚本
         stdout, stderr, returncode = self.bridge.run_update()
@@ -194,14 +263,30 @@ class MainMenu:
 
         questionary.press_any_key_to_continue("\n按任意键继续...").ask()
 
-    async def _run_python_scraper(self) -> None:
-        """运行 Python 爬虫更新（异步）"""
+    async def _run_python_scraper(
+        self,
+        selected_authors: list = None,
+        max_pages: int = None
+    ) -> None:
+        """运行 Python 爬虫更新（异步）
+
+        Args:
+            selected_authors: 选中的作者列表（None 表示全部）
+            max_pages: 每个作者下载的最大页数（None 表示全部）
+        """
         from ..scraper.archiver import ForumArchiver
 
         archiver = ForumArchiver(self.config)
 
-        # 准备需要更新的作者列表
-        authors_to_update = self.config['followed_authors']
+        # 使用选中的作者，如果未提供则使用全部
+        authors_to_update = selected_authors or self.config['followed_authors']
+
+        # 如果 max_pages 未提供，使用默认值（测试模式）
+        if max_pages is None:
+            max_pages = 1  # 默认测试模式
+            self.console.print(
+                "[yellow]提示: 未指定页数，默认只下载第 1 页（测试模式）[/yellow]\n"
+            )
 
         for idx, author in enumerate(authors_to_update, 1):
             author_name = author['name']
@@ -218,10 +303,12 @@ class MainMenu:
                 f"更新作者: {author_name}[/bold cyan]"
             )
 
+            # 显示页数信息
+            page_info = f"前 {max_pages} 页" if max_pages else "全部页面"
+            self.console.print(f"[dim]  下载范围: {page_info}[/dim]")
+
             try:
-                # 🧪 测试模式：限制为 1 页（约 50 篇帖子）
-                # 正式使用时改为 None（抓取全部）
-                max_pages = 1  # None = 抓取全部，1 = 只测试 1 页
+                # 使用传入的 max_pages 参数
                 result = await archiver.archive_author(author_name, author_url, max_pages)
 
                 # 显示结果
@@ -232,7 +319,7 @@ class MainMenu:
                     f"失败 {result['failed']} 篇"
                 )
 
-                # 更新配置中的统计信息（可选）
+                # 更新配置中的统计信息
                 author['last_update'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 author['total_posts'] = author.get('total_posts', 0) + result['new']
 
