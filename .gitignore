@@ -89,6 +89,11 @@ Thumbs.db
 test_output/
 temp/
 
+# 调试脚本和截图
+debug_*.py
+debug_*.png
+test_*.py
+
 # ==================== 其他 ====================
 # 备份文件
 *.backup
