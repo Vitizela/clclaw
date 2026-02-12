@@ -299,7 +299,7 @@ URL: {post_data['url']}
             post_data: Post data dictionary
 
         Returns:
-            Post directory path following structure: author/year/month/title
+            Post directory path following structure: author/year/month/YYYY-MM-DD_title
         """
         # 解析发布时间
         pub_time = self._parse_time(post_data['time'])
@@ -307,14 +307,25 @@ URL: {post_data['url']}
         year = str(pub_time.year)
         month = f"{pub_time.month:02d}"
 
+        # 格式化日期：YYYY-MM-DD
+        date_prefix = pub_time.strftime('%Y-%m-%d')
+
         # 安全化标题
         max_length = self.config.get('storage', {}).get('organization', {}).get(
             'filename_max_length', 100
         )
-        safe_title = sanitize_filename(post_data['title'], max_length=max_length)
 
-        # 构建路径
-        post_dir = self.archive_dir / author_name / year / month / safe_title
+        # 计算标题最大长度：总长度 - 日期长度 - 下划线
+        # 格式：YYYY-MM-DD_标题
+        # 日期：10字符，下划线：1字符
+        title_max_length = max_length - 11  # 100 - 11 = 89
+        safe_title = sanitize_filename(post_data['title'], max_length=title_max_length)
+
+        # 构建带日期的目录名
+        dir_name = f"{date_prefix}_{safe_title}"
+
+        # 构建完整路径
+        post_dir = self.archive_dir / author_name / year / month / dir_name
 
         return post_dir
 
