@@ -11,6 +11,7 @@ from typing import Dict, Any, List
 from ..config.manager import ConfigManager
 from ..bridge.nodejs_bridge import NodeJSBridge
 from ..utils.display import show_author_table, show_warning
+from ..utils.keybindings import MENU_KEYBINDINGS, INPUT_KEYBINDINGS
 
 
 class MainMenu:
@@ -71,6 +72,8 @@ class MainMenu:
 
     def _show_main_menu(self) -> str:
         """显示主菜单"""
+        self.console.print("[dim]快捷键: ESC/q/Ctrl+B=退出, ↑↓=导航, Enter=确认[/dim]\n")
+
         choices = [
             "🔍 关注新作者（通过帖子链接）",
             "📋 查看关注列表",
@@ -85,18 +88,20 @@ class MainMenu:
         return questionary.select(
             "\n请选择操作：",
             choices=choices,
-            style=self.custom_style
+            style=self.custom_style,
+            key_bindings=MENU_KEYBINDINGS
         ).ask()
 
     def _follow_author(self) -> None:
         """关注新作者"""
         self.console.print("\n[bold]🔍 关注新作者[/bold]\n")
-        self.console.print("[dim]提示: 按 ESC 或留空可返回上级菜单[/dim]\n")
+        self.console.print("[dim]提示: ESC/Ctrl+B 返回, 留空也可返回[/dim]\n")
 
         post_url = questionary.text(
             "请输入帖子 URL (留空返回):",
             style=self.custom_style,
-            validate=lambda x: True  # 允许空输入以返回
+            validate=lambda x: True,  # 允许空输入以返回
+            key_bindings=INPUT_KEYBINDINGS
         ).ask()
 
         if not post_url or not post_url.strip():
@@ -174,7 +179,8 @@ class MainMenu:
                         questionary.Choice("← 返回", value='cancel'),
                     ],
                     style=self.custom_style,
-                    default='last'
+                    default='last',
+                    key_bindings=MENU_KEYBINDINGS
                 ).ask()
 
                 if quick_choice is None or quick_choice == 'cancel':  # 用户取消或选择返回
@@ -216,10 +222,11 @@ class MainMenu:
                 )
 
             selected_authors = questionary.checkbox(
-                "请选择要更新的作者（Space 勾选，Enter 确认）:",
+                "请选择要更新的作者（Space 勾选，Enter 确认，ESC/q 返回）:",
                 choices=author_choices,
                 style=self.custom_style,
-                validate=lambda x: x is None or len(x) > 0 or "至少选择一位作者"  # 允许 ESC 返回 None
+                validate=lambda x: x is None or len(x) > 0 or "至少选择一位作者",  # 允许 ESC 返回 None
+                key_bindings=MENU_KEYBINDINGS
             ).ask()
 
             if not selected_authors:
@@ -240,7 +247,8 @@ class MainMenu:
                 questionary.Choice("← 返回", value='cancel'),
             ],
             style=self.custom_style,
-            default=1  # 使用 value 而不是 title
+            default=1,  # 使用 value 而不是 title
+            key_bindings=MENU_KEYBINDINGS
         ).ask()
 
         if page_options is None or page_options == 'cancel':  # 用户取消或选择返回
@@ -249,11 +257,12 @@ class MainMenu:
         # 处理自定义页数
         max_pages = page_options
         if page_options == 'custom':
-            self.console.print("[dim]提示: 留空表示全部页面，按 ESC 返回[/dim]")
+            self.console.print("[dim]提示: 留空=全部页面, ESC/Ctrl+B=返回[/dim]")
             custom_pages = questionary.text(
                 "请输入页数（留空=全部）:",
                 validate=lambda x: x is None or x == '' or (x.isdigit() and int(x) > 0) or "请输入正整数或留空",  # 允许 ESC 返回 None
-                style=self.custom_style
+                style=self.custom_style,
+                key_bindings=INPUT_KEYBINDINGS
             ).ask()
 
             if custom_pages is None:  # 用户按 ESC 取消
@@ -398,7 +407,8 @@ class MainMenu:
         author_name = questionary.select(
             "选择要取消关注的作者：",
             choices=author_choices,
-            style=self.custom_style
+            style=self.custom_style,
+            key_bindings=MENU_KEYBINDINGS
         ).ask()
 
         if author_name == "← 返回" or not author_name:
@@ -433,7 +443,8 @@ class MainMenu:
             choice = questionary.select(
                 "选择设置项：",
                 choices=setting_choices,
-                style=self.custom_style
+                style=self.custom_style,
+                key_bindings=MENU_KEYBINDINGS
             ).ask()
 
             if not choice or choice == "← 返回":
@@ -452,12 +463,13 @@ class MainMenu:
         """修改论坛 URL"""
         current = self.config['forum']['section_url']
         self.console.print(f"当前 URL: [cyan]{current}[/cyan]")
-        self.console.print("[dim]提示: 按 ESC 取消修改[/dim]\n")
+        self.console.print("[dim]提示: ESC/Ctrl+B 取消修改[/dim]\n")
 
         new_url = questionary.text(
             "新 URL:",
             default=current,
-            style=self.custom_style
+            style=self.custom_style,
+            key_bindings=INPUT_KEYBINDINGS
         ).ask()
 
         if new_url is None:  # 用户按 ESC 取消
@@ -475,12 +487,13 @@ class MainMenu:
         """修改归档路径"""
         current = self.config['storage']['archive_path']
         self.console.print(f"当前路径: [cyan]{current}[/cyan]")
-        self.console.print("[dim]提示: 按 ESC 取消修改[/dim]\n")
+        self.console.print("[dim]提示: ESC/Ctrl+B 取消修改[/dim]\n")
 
         new_path = questionary.text(
             "新路径:",
             default=current,
-            style=self.custom_style
+            style=self.custom_style,
+            key_bindings=INPUT_KEYBINDINGS
         ).ask()
 
         if new_path is None:  # 用户按 ESC 取消
