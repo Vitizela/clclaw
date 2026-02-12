@@ -16,6 +16,9 @@ from pathlib import Path
 from datetime import datetime
 from typing import Optional, Dict, List
 import re
+import sys
+
+from jinja2 import Environment, FileSystemLoader
 
 from .extractor import PostExtractor
 from .downloader import MediaDownloader
@@ -27,6 +30,10 @@ from .utils import (
     save_archive_progress
 )
 from ..utils.logger import setup_logger
+
+# Add parent to path for templates import
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from templates.filters import clean_html_content, format_file_size
 
 
 class ForumArchiver:
@@ -70,6 +77,16 @@ class ForumArchiver:
         # Download settings
         self.download_images = config.get('storage', {}).get('download', {}).get('images', True)
         self.download_videos = config.get('storage', {}).get('download', {}).get('videos', True)
+
+        # Initialize Jinja2 template engine
+        template_dir = Path(__file__).parent.parent / 'templates'
+        self.jinja_env = Environment(loader=FileSystemLoader(str(template_dir)))
+
+        # Register custom filters
+        self.jinja_env.filters['clean'] = clean_html_content
+        self.jinja_env.filters['size'] = format_file_size
+
+        self.logger.info("模板引擎已初始化")
 
     async def archive_author(
         self,
@@ -215,28 +232,7 @@ class ForumArchiver:
             # 获取归档进度（断点续传）
             progress = get_archive_progress(post_dir)
 
-            # Step 1: 保存正文（如果未完成）
-            if not progress.get('content', False):
-                self.logger.info("  → 保存正文...")
-                content_file = post_dir / 'content.html'
-
-                # Save metadata + content
-                metadata = f"""<!-- 帖子元数据
-标题: {post_data['title']}
-作者: {post_data['author']}
-时间: {post_data['time']}
-URL: {post_data['url']}
--->
-
-"""
-                full_content = metadata + post_data['content']
-                content_file.write_text(full_content, encoding='utf-8')
-
-                progress['content'] = True
-                save_archive_progress(post_dir, progress)
-                self.logger.info("  ✓ 正文已保存")
-
-            # Step 2: 下载图片（如果启用且未完成）
+            # Step 1: 下载图片（如果启用且未完成）
             if (self.download_images and
                 post_data['images'] and
                 not progress.get('images_done', False)):
@@ -257,7 +253,7 @@ URL: {post_data['url']}
                     f"  ✓ 图片下载完成: {success_count}/{len(post_data['images'])}"
                 )
 
-            # Step 3: 下载视频（如果启用且未完成）
+            # Step 2: 下载视频（如果启用且未完成）
             if (self.download_videos and
                 post_data['videos'] and
                 not progress.get('videos_done', False)):
@@ -278,6 +274,15 @@ URL: {post_data['url']}
                     f"  ✓ 视频下载完成: {success_count}/{len(post_data['videos'])}"
                 )
 
+            # Step 3: 生成 content.html（使用新模板）
+            # 注意：在媒体下载完成后生成，这样可以正确列出本地文件
+            if not progress.get('content', False):
+                self.logger.info("  → 生成 content.html...")
+                self._save_content_html(post_data, post_dir)
+
+                progress['content'] = True
+                save_archive_progress(post_dir, progress)
+
             # 所有步骤完成，标记完成并删除进度文件
             mark_complete(post_dir, post_data['url'])
 
@@ -290,6 +295,103 @@ URL: {post_data['url']}
         except Exception as e:
             self.logger.error(f"归档帖子失败: {str(e)}", exc_info=True)
             return False
+
+    def _prepare_media_list(self, media_urls: List[str], media_type: str, post_dir: Path) -> List[Dict]:
+        """准备媒体文件列表（用于模板）
+
+        Args:
+            media_urls: 原始 URL 列表
+            media_type: 'image' 或 'video'
+            post_dir: 帖子目录
+
+        Returns:
+            [{'filename': 'img_1.jpg', 'url': '...', 'size': '1.2 MB'}, ...]
+        """
+        media_list = []
+
+        # 确定子目录和文件前缀
+        if media_type == 'image':
+            subdir = post_dir / 'photo'
+            prefix = 'img_'
+            extensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp']
+        else:  # video
+            subdir = post_dir / 'video'
+            prefix = 'video_'
+            extensions = ['.mp4', '.avi', '.mkv', '.webm', '.mov']
+
+        if not subdir.exists():
+            return []
+
+        # 遍历原始 URL，匹配本地文件
+        for idx, url in enumerate(media_urls, 1):
+            # 尝试找到对应的本地文件
+            filename = None
+            file_size = None
+
+            # 方法1：按索引匹配（img_1.jpg, img_2.jpg...）
+            for ext in extensions:
+                candidate = subdir / f"{prefix}{idx}{ext}"
+                if candidate.exists():
+                    filename = f"{prefix}{idx}{ext}"
+                    file_size = candidate.stat().st_size
+                    break
+
+            # 如果找不到，使用占位
+            if not filename:
+                filename = f"{prefix}{idx}.unknown"
+
+            media_list.append({
+                'filename': filename,
+                'url': url,
+                'size': format_file_size(file_size) if file_size else None
+            })
+
+        return media_list
+
+    def _save_content_html(self, post_data: Dict, post_dir: Path):
+        """使用模板生成并保存 content.html
+
+        Args:
+            post_data: 帖子数据（包含 title, author, time, content, images, videos, url）
+            post_dir: 帖子目录
+        """
+        try:
+            # 准备模板数据
+            template_data = {
+                'title': post_data.get('title', '无标题'),
+                'author': post_data.get('author', '未知作者'),
+                'publish_time': post_data.get('time', 'N/A'),
+                'archive_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'url': post_data.get('url', ''),
+                'content': clean_html_content(post_data.get('content', '')),
+                'content_length': len(post_data.get('content', '')),
+                'images': self._prepare_media_list(
+                    post_data.get('images', []),
+                    'image',
+                    post_dir
+                ),
+                'videos': self._prepare_media_list(
+                    post_data.get('videos', []),
+                    'video',
+                    post_dir
+                )
+            }
+
+            # 加载模板
+            template = self.jinja_env.get_template('post.html')
+
+            # 渲染 HTML
+            html = template.render(**template_data)
+
+            # 保存文件
+            content_file = post_dir / 'content.html'
+            content_file.write_text(html, encoding='utf-8')
+
+            self.logger.info(f"  ✓ 已生成 content.html")
+
+        except Exception as e:
+            self.logger.error(f"生成 content.html 失败: {str(e)}", exc_info=True)
+            raise
 
     def _get_post_directory(self, author_name: str, post_data: Dict) -> Path:
         """计算帖子目录路径

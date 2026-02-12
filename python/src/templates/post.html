@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} - {{ author }}</title>
+    <style>
+        /* 极简 CSS，w3m 友好 */
+        body {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 0 15px;
+            line-height: 1.6;
+            font-family: monospace;
+        }
+        h1 {
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+        .meta {
+            color: #666;
+            margin: 5px 0;
+            font-size: 0.95em;
+        }
+        .meta b {
+            color: #000;
+        }
+        article {
+            margin: 30px 0;
+        }
+        article p {
+            margin: 10px 0;
+            text-indent: 2em;
+        }
+        article h2 {
+            font-size: 1.3em;
+            margin: 25px 0 15px 0;
+            border-bottom: 1px solid #999;
+            padding-bottom: 5px;
+        }
+        section {
+            margin: 30px 0;
+            border-top: 1px solid #ddd;
+            padding-top: 20px;
+        }
+        section h2 {
+            font-size: 1.2em;
+            border-bottom: none;
+        }
+        .file {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid #ccc;
+            padding-left: 10px;
+        }
+        .file a {
+            color: #06c;
+            text-decoration: none;
+        }
+        .file a:hover {
+            text-decoration: underline;
+        }
+        footer {
+            border-top: 1px solid #ccc;
+            margin-top: 30px;
+            padding-top: 10px;
+            color: #666;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+
+<!-- 头部：元数据 -->
+<header>
+    <h1>{{ title }}</h1>
+    <div class="meta">
+        <b>作者:</b> {{ author }} |
+        <b>发布:</b> {{ publish_time }} |
+        <b>归档:</b> {{ archive_time }}
+    </div>
+    <div class="meta">
+        <b>原文:</b> <a href="{{ url }}">{{ url }}</a>
+    </div>
+</header>
+
+<!-- 正文 -->
+<article>
+    {{ content|safe }}
+</article>
+
+<!-- 图片列表 -->
+{% if images %}
+<section>
+    <h2>📷 图片 ({{ images|length }})</h2>
+    {% for img in images %}
+    <div class="file">
+        <strong>[{{ loop.index }}]</strong>
+        <a href="photo/{{ img.filename }}">photo/{{ img.filename }}</a>
+        {% if img.size %}({{ img.size }}){% endif %}
+    </div>
+    {% endfor %}
+</section>
+{% endif %}
+
+<!-- 视频列表 -->
+{% if videos %}
+<section>
+    <h2>🎬 视频 ({{ videos|length }})</h2>
+    {% for vid in videos %}
+    <div class="file">
+        <strong>[{{ loop.index }}]</strong>
+        <a href="video/{{ vid.filename }}">video/{{ vid.filename }}</a>
+        {% if vid.size %}({{ vid.size }}){% endif %}
+    </div>
+    {% endfor %}
+</section>
+{% endif %}
+
+<!-- 页脚：统计 -->
+<footer>
+    <p>
+        <b>统计:</b> {{ content_length }} 字符 |
+        {{ images|length }} 图片 |
+        {{ videos|length }} 视频
+    </p>
+    <p>
+        <b>归档:</b> {{ archive_time }} |
+        <b>生成器:</b> Python Scraper v2.5 (Playwright + Jinja2)
+    </p>
+    <p>
+        <b>终端浏览:</b> <code>w3m content.html</code>
+    </p>
+</footer>
+
+</body>
+</html>
