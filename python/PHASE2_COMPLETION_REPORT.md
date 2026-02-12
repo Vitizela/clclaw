@@ -173,6 +173,65 @@ Phase 2 成功实现了 Python 爬虫核心功能，完全替代了 Node.js 桥�
 
 ---
 
+## 🐛 问题与修复
+
+### 问题统计
+
+Phase 2 实施过程中发现并修复了 **14 个问题**：
+
+- 🔴 **严重问题**: 4 个（影响核心功能）
+- 🟡 **重要问题**: 3 个（影响性能或体验）
+- 🟢 **优化问题**: 7 个（改进和增强）
+
+**修复率**: 100% ✅
+
+### 主要问题汇总
+
+#### 问题 #1: 选择器找不到帖子 🔴
+- **症状**: 收集到 0 篇帖子
+- **原因**: 选择器 `#tbody tr .bl a` 不匹配 HTML 结构
+- **修复**: 改用 `table a[href*="htm_data"]`
+- **提交**: 67e8c3f
+
+#### 问题 #5: 性能问题 - 打开每个帖子检查作者 🟡
+- **症状**: 需要打开 99 次页面才能过滤出 21 篇帖子
+- **原因**: 在详情页检查作者，而非列表页
+- **修复**: 在列表页 TD3 单元格提取作者名进行过滤
+- **性能提升**: **4-5倍**
+- **提交**: 864c0d2
+
+#### 问题 #6: 错误的 URL 格式 🔴
+- **症状**: 过滤掉所有帖子
+- **原因**: 使用内容搜索 URL 而非作者主页 URL
+- **修复**: 更正为 `https://t66y.com/@作者名` 格式
+- **提交**: 手动修改 config.yaml
+
+#### 问题 #8: 作者主页过滤失败 🔴
+- **症状**: 作者主页的帖子全部被过滤
+- **原因**: 主页和搜索页的 HTML 结构不同
+- **修复**: 检测 URL 类型，主页跳过作者过滤
+- **提交**: 818007d
+
+#### 问题 #9: 时间提取失败 🟡
+- **症状**: 无法提取发布时间
+- **原因**: 选择器未包含 `.tipad` 元素
+- **修复**: 添加 `.tipad` 选择器并支持 "Posted: " 格式
+- **提交**: 421dc31
+
+#### 问题 #10: 目录名缺少日期标记 🟢
+- **需求**: 用户希望在目录名中看到时间标记
+- **实现**: 添加日期前缀 `YYYY-MM-DD_标题`
+- **效果**: `2026-02-11_越是没本事的人越喜欢研究人情世故/`
+- **提交**: daf0bee
+
+### 详细记录
+
+完整的问题描述、根本原因、调试过程和修复方案请参阅：
+
+📄 **[PHASE2_PROBLEMS_AND_FIXES.md](PHASE2_PROBLEMS_AND_FIXES.md)**
+
+---
+
 ## 🔧 技术亮点
 
 ### 1. 断点续传机制
@@ -282,9 +341,11 @@ tail -f python/logs/downloader.log
 
 ## 📚 相关文档
 
-- [PHASE2_DESIGN_SUPPLEMENT.md](docs/PHASE2_DESIGN_SUPPLEMENT.md) - 设计补充
-- [PHASE2_API_MAPPING.md](docs/PHASE2_API_MAPPING.md) - Playwright API 映射
-- [PHASE2_TESTING.md](docs/PHASE2_TESTING.md) - 测试指南
+- [PHASE2_DESIGN_SUPPLEMENT.md](../PHASE2_DESIGN_SUPPLEMENT.md) - 设计补充
+- [PHASE2_API_MAPPING.md](../PHASE2_API_MAPPING.md) - Playwright API 映射
+- [PHASE2_TESTING.md](../PHASE2_TESTING.md) - 测试指南
+- [PHASE2_PROBLEMS_AND_FIXES.md](PHASE2_PROBLEMS_AND_FIXES.md) - 问题与修复记录（新增）
+- [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md) - 项目总体状态
 - [README.md](README.md) - 项目主文档
 
 ---

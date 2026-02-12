@@ -83,6 +83,15 @@ python/
 - 集成测试: 3/3
 ```
 
+### 问题修复
+实施过程中发现并修复了 **14 个问题**，包括：
+- 🔴 选择器匹配失败
+- 🔴 作者过滤不准确
+- 🟡 性能优化（4-5倍提升）
+- 🟢 用户体验改进（日期前缀）
+
+详见：[PHASE2_PROBLEMS_AND_FIXES.md](PHASE2_PROBLEMS_AND_FIXES.md)
+
 ### 技术栈
 - **Playwright**: 浏览器自动化
 - **aiohttp**: 异步 HTTP 客户端
@@ -249,8 +258,10 @@ pytest tests/ -v
 
 ### 实施文档
 - [PHASE2_COMPLETION_REPORT.md](PHASE2_COMPLETION_REPORT.md) - Phase 2 完成报告
-- [PHASE2_API_MAPPING.md](docs/PHASE2_API_MAPPING.md) - Playwright API 映射
-- [PHASE2_TESTING.md](docs/PHASE2_TESTING.md) - 测试指南
+- [PHASE2_PROBLEMS_AND_FIXES.md](PHASE2_PROBLEMS_AND_FIXES.md) - Phase 2 问题与修复记录
+- [PHASE2_API_MAPPING.md](../PHASE2_API_MAPPING.md) - Playwright API 映射
+- [PHASE2_TESTING.md](../PHASE2_TESTING.md) - 测试指南
+- [PHASE1_BUGS_FIXED.md](../PHASE1_BUGS_FIXED.md) - Phase 1 Bug 修复记录
 
 ### 开发文档
 - [GIT_GUIDE.md](docs/GIT_GUIDE.md) - Git 使用指南
