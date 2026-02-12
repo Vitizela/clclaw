@@ -72,7 +72,7 @@ class MainMenu:
 
     def _show_main_menu(self) -> str:
         """显示主菜单"""
-        self.console.print("[dim]快捷键: ESC/q/Ctrl+B=退出, ↑↓=导航, Enter=确认[/dim]\n")
+        self.console.print("[dim]提示: ESC=退出, ↑↓=导航, Enter=确认[/dim]\n")
 
         choices = [
             "🔍 关注新作者（通过帖子链接）",
@@ -94,7 +94,7 @@ class MainMenu:
     def _follow_author(self) -> None:
         """关注新作者"""
         self.console.print("\n[bold]🔍 关注新作者[/bold]\n")
-        self.console.print("[dim]提示: ESC/Ctrl+B 返回, 留空也可返回[/dim]\n")
+        self.console.print("[dim]提示: ESC 返回, 留空也可返回[/dim]\n")
 
         post_url = text_with_keybindings(
             "请输入帖子 URL (留空返回):",
@@ -219,7 +219,7 @@ class MainMenu:
                 )
 
             selected_authors = checkbox_with_keybindings(
-                "请选择要更新的作者（Space 勾选，Enter 确认，ESC/q 返回）:",
+                "请选择要更新的作者（Space 勾选，Enter 确认，ESC 返回）:",
                 choices=author_choices,
                 style=self.custom_style,
                 validate=lambda x: x is None or len(x) > 0 or "至少选择一位作者"  # 允许 ESC 返回 None
@@ -252,7 +252,7 @@ class MainMenu:
         # 处理自定义页数
         max_pages = page_options
         if page_options == 'custom':
-            self.console.print("[dim]提示: 留空=全部页面, ESC/Ctrl+B=返回[/dim]")
+            self.console.print("[dim]提示: 留空=全部页面, ESC=返回[/dim]")
             custom_pages = text_with_keybindings(
                 "请输入页数（留空=全部）:",
                 validate=lambda x: x is None or x == '' or (x.isdigit() and int(x) > 0) or "请输入正整数或留空",  # 允许 ESC 返回 None
@@ -455,7 +455,7 @@ class MainMenu:
         """修改论坛 URL"""
         current = self.config['forum']['section_url']
         self.console.print(f"当前 URL: [cyan]{current}[/cyan]")
-        self.console.print("[dim]提示: ESC/Ctrl+B 取消修改[/dim]\n")
+        self.console.print("[dim]提示: ESC 取消修改[/dim]\n")
 
         new_url = text_with_keybindings(
             "新 URL:",
@@ -478,7 +478,7 @@ class MainMenu:
         """修改归档路径"""
         current = self.config['storage']['archive_path']
         self.console.print(f"当前路径: [cyan]{current}[/cyan]")
-        self.console.print("[dim]提示: ESC/Ctrl+B 取消修改[/dim]\n")
+        self.console.print("[dim]提示: ESC 取消修改[/dim]\n")
 
         new_path = text_with_keybindings(
             "新路径:",
