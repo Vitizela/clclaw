@@ -265,6 +265,7 @@ class PostExtractor:
         try:
             # Try multiple selectors
             selectors = [
+                '.tipad',                      # 最常见的位置
                 '.tr1.do_not_catch .f10',
                 '.postinfo',
                 '.authorinfo em'
@@ -273,9 +274,19 @@ class PostExtractor:
                 time_elem = await self.page.query_selector(selector)
                 if time_elem:
                     time_text = await time_elem.inner_text()
-                    # Clean up time text
+
+                    # 提取 "Posted: YYYY-MM-DD HH:MM" 格式
+                    posted_match = re.search(r'Posted:\s*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})', time_text)
+                    if posted_match:
+                        return posted_match.group(1)
+
+                    # 清理其他格式的时间文本
                     time_text = re.sub(r'发表于[:：\s]*', '', time_text)
-                    return time_text.strip()
+                    time_text = time_text.strip()
+
+                    # 如果包含时间格式，返回
+                    if re.search(r'\d{4}[-/]\d{2}[-/]\d{2}', time_text):
+                        return time_text
 
             self.logger.warning("未找到发布时间")
             return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
