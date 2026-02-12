@@ -34,16 +34,20 @@ class NodeJSBridge:
 
         print(f"[桥接] Node.js 目录: {self.nodejs_dir}")
 
-    def follow_author(self, post_url: str) -> Tuple[str, str, int]:
+    def follow_author(self, post_url: str, no_archive: bool = False) -> Tuple[str, str, int]:
         """调用 follow_author.js
 
         Args:
             post_url: 帖子 URL
+            no_archive: 是否跳过立即归档（默认 False）
 
         Returns:
             (stdout, stderr, returncode)
         """
-        return self._run_script("follow_author.js", [post_url])
+        args = [post_url]
+        if no_archive:
+            args.append("--no-archive")
+        return self._run_script("follow_author.js", args)
 
     def archive_posts(self, authors: List[str]) -> Tuple[str, str, int]:
         """调用 archive_posts.js

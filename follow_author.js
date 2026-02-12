@@ -54,9 +54,17 @@ async function followAuthor(postUrl) {
     fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
     console.log(`已将 ${authorName} 添加到您的关注列表。`);
 
+    // 4. 检查是否需要立即归档
+    const skipArchive = process.argv.includes('--no-archive');
+
+    if (skipArchive) {
+        console.log(`作者已添加，您可以稍后通过"立即更新"进行归档。`);
+        return;
+    }
+
     // 4. 触发首次全量归档
     console.log(`正在为 ${authorName} 触发首次全量归档，这可能需要一些时间...`);
-    
+
     // 注意：这里我们直接调用 archive_posts.js。确保它在 PATH 中或提供正确路径。
     // 为了安全，我们对作者名进行转义，防止命令行注入。
     const escapedAuthorName = JSON.stringify(authorName);

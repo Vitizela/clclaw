@@ -103,8 +103,8 @@ class MainMenu:
 
         self.console.print(f"\n[cyan]正在调用 Node.js 脚本处理...[/cyan]\n")
 
-        # 调用 Node.js 脚本
-        stdout, stderr, returncode = self.bridge.follow_author(post_url)
+        # 调用 Node.js 脚本（只添加到关注列表，不立即归档）
+        stdout, stderr, returncode = self.bridge.follow_author(post_url, no_archive=True)
 
         if returncode == 0:
             self.console.print(f"\n[green]✓ 操作完成[/green]")
