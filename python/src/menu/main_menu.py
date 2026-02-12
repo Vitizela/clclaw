@@ -1,4 +1,5 @@
 """主菜单系统"""
+import asyncio
 import questionary
 from questionary import Style
 from rich.console import Console
@@ -149,6 +150,21 @@ class MainMenu:
         if not confirm:
             return
 
+        # 检查是否使用 Python 爬虫
+        use_python = self.config.get('experimental', {}).get('use_python_scraper', False)
+
+        if use_python:
+            self.console.print(f"\n[cyan]🐍 使用 Python 爬虫更新...[/cyan]\n")
+            try:
+                # Run async Python scraper
+                asyncio.run(self._run_python_scraper())
+                return
+            except Exception as e:
+                self.console.print(f"\n[red]✗ Python 爬虫失败: {str(e)}[/red]")
+                self.console.print(f"[yellow]⚠ 回退到 Node.js 爬虫...[/yellow]\n")
+                # Fall through to Node.js scraper
+
+        # 使用 Node.js 爬虫（默认或回退）
         self.console.print(f"\n[cyan]正在调用 Node.js 脚本更新...[/cyan]\n")
 
         # 调用 Node.js 脚本
@@ -162,6 +178,56 @@ class MainMenu:
         else:
             self.console.print(f"\n[red]✗ 更新失败[/red]")
 
+        questionary.press_any_key_to_continue("\n按任意键继续...").ask()
+
+    async def _run_python_scraper(self) -> None:
+        """运行 Python 爬虫更新（异步）"""
+        from ..scraper.archiver import ForumArchiver
+
+        archiver = ForumArchiver(self.config)
+
+        # 准备需要更新的作者列表
+        authors_to_update = self.config['followed_authors']
+
+        for idx, author in enumerate(authors_to_update, 1):
+            author_name = author['name']
+            author_url = author.get('url')
+
+            if not author_url:
+                self.console.print(
+                    f"[yellow]⚠ 跳过作者 {author_name}（无 URL）[/yellow]"
+                )
+                continue
+
+            self.console.print(
+                f"\n[bold cyan]({idx}/{len(authors_to_update)}) "
+                f"更新作者: {author_name}[/bold cyan]"
+            )
+
+            try:
+                result = await archiver.archive_author(author_name, author_url)
+
+                # 显示结果
+                self.console.print(
+                    f"  [green]✓ 完成:[/green] "
+                    f"新增 {result['new']} 篇, "
+                    f"跳过 {result['skipped']} 篇, "
+                    f"失败 {result['failed']} 篇"
+                )
+
+                # 更新配置中的统计信息（可选）
+                author['last_update'] = self.config_manager._get_timestamp()
+                author['total_posts'] = author.get('total_posts', 0) + result['new']
+
+            except Exception as e:
+                self.console.print(
+                    f"  [red]✗ 失败: {str(e)}[/red]"
+                )
+
+        # 保存更新后的配置
+        self.config_manager.save_config(self.config)
+
+        self.console.print(f"\n[green]✓ 所有作者更新完成[/green]")
         questionary.press_any_key_to_continue("\n按任意键继续...").ask()
 
     def _unfollow_author(self) -> None:
