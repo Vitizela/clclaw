@@ -16,7 +16,7 @@ from pathlib import Path
 from playwright.async_api import async_playwright, Page, Browser, Playwright
 from bs4 import BeautifulSoup
 
-from utils.logger import setup_logger
+from ..utils.logger import setup_logger
 from .utils import parse_relative_url
 
 

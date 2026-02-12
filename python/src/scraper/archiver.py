@@ -26,7 +26,7 @@ from .utils import (
     get_archive_progress,
     save_archive_progress
 )
-from utils.logger import setup_logger
+from ..utils.logger import setup_logger
 
 
 class ForumArchiver:

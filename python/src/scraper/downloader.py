@@ -15,7 +15,7 @@ from typing import List, Optional
 from tqdm.asyncio import tqdm
 import os
 
-from utils.logger import setup_logger
+from ..utils.logger import setup_logger
 
 
 class MediaDownloader:
