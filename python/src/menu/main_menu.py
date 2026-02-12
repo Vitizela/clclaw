@@ -158,7 +158,20 @@ class MainMenu:
             self.console.print(f"\n[cyan]🐍 使用 Python 爬虫更新...[/cyan]\n")
             try:
                 # Run async Python scraper
-                asyncio.run(self._run_python_scraper())
+                # Try to use existing event loop, or create new one
+                try:
+                    # Check if there's already a running event loop
+                    asyncio.get_running_loop()
+                    # If we get here, loop is running - use new_event_loop()
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    try:
+                        loop.run_until_complete(self._run_python_scraper())
+                    finally:
+                        loop.close()
+                except RuntimeError:
+                    # No event loop running, safe to use asyncio.run()
+                    asyncio.run(self._run_python_scraper())
                 return
             except Exception as e:
                 self.console.print(f"\n[red]✗ Python 爬虫失败: {str(e)}[/red]")
@@ -206,9 +219,9 @@ class MainMenu:
             )
 
             try:
-                # 🧪 测试模式：限制为 5 页（约 250 篇帖子）
+                # 🧪 测试模式：限制为 1 页（约 50 篇帖子）
                 # 正式使用时改为 None（抓取全部）
-                max_pages = 5  # None = 抓取全部，5 = 只抓取前 5 页
+                max_pages = 1  # None = 抓取全部，1 = 只测试 1 页
                 result = await archiver.archive_author(author_name, author_url, max_pages)
 
                 # 显示结果
