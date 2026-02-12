@@ -1,5 +1,6 @@
 """主菜单系统"""
 import asyncio
+from datetime import datetime
 import questionary
 from questionary import Style
 from rich.console import Console
@@ -205,7 +206,10 @@ class MainMenu:
             )
 
             try:
-                result = await archiver.archive_author(author_name, author_url)
+                # 🧪 测试模式：限制为 5 页（约 250 篇帖子）
+                # 正式使用时改为 None（抓取全部）
+                max_pages = 5  # None = 抓取全部，5 = 只抓取前 5 页
+                result = await archiver.archive_author(author_name, author_url, max_pages)
 
                 # 显示结果
                 self.console.print(
@@ -216,7 +220,7 @@ class MainMenu:
                 )
 
                 # 更新配置中的统计信息（可选）
-                author['last_update'] = self.config_manager._get_timestamp()
+                author['last_update'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 author['total_posts'] = author.get('total_posts', 0) + result['new']
 
             except Exception as e:
@@ -225,7 +229,7 @@ class MainMenu:
                 )
 
         # 保存更新后的配置
-        self.config_manager.save_config(self.config)
+        self.config_manager.save(self.config)
 
         self.console.print(f"\n[green]✓ 所有作者更新完成[/green]")
         questionary.press_any_key_to_continue("\n按任意键继续...").ask()

@@ -95,8 +95,8 @@ class PostExtractor:
                 await self.page.goto(current_url, wait_until='networkidle', timeout=30000)
 
                 # 提取帖子 URL（注意：使用 Python API - query_selector_all）
-                # Selector: #tbody tr .bl a
-                links = await self.page.query_selector_all('#tbody tr .bl a')
+                # Selector: 匹配所有包含 htm_data 的帖子链接
+                links = await self.page.query_selector_all('table a[href*="htm_data"]')
 
                 if not links:
                     self.logger.info(f"第 {page_num} 页无更多帖子")
