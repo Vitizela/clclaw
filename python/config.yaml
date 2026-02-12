@@ -46,6 +46,10 @@ logging:
   backup_count: 5
 advanced:
   parallel_downloads: 5
+  max_concurrent: 5
+  download_retry: 3
+  download_timeout: 30
+  rate_limit_delay: 0.5
   browser_headless: true
   proxy: null
 experimental:
