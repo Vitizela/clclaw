@@ -113,6 +113,12 @@ class PostExtractor:
 
                 post_urls.extend(page_post_urls)
                 self.logger.info(f"第 {page_num} 页: 找到 {len(page_post_urls)} 篇帖子")
+
+                # 检查是否已达到页数限制
+                if max_pages and page_num >= max_pages:
+                    self.logger.info(f"已达到页数限制 ({max_pages} 页)，停止收集")
+                    break
+
                 page_num += 1
 
                 # 检查是否有下一页
