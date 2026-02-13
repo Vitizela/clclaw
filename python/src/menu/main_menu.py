@@ -148,13 +148,20 @@ class MainMenu:
             questionary.press_any_key_to_continue("\n按任意键返回...").ask()
             return
 
-        # Phase 2-B 需求 1: 显示作者列表
+        # Phase 2-B 需求 1: 显示作者列表（带上次选择标记）
         self.console.print("[cyan]当前关注的作者:[/cyan]\n")
-        show_author_table(self.config['followed_authors'])
+
+        # 获取上次选择的作者名列表
+        last_selected = self.config.get('user_preferences', {}).get('last_selected_authors', [])
+
+        # 传递 last_selected 参数，显示选中标记
+        show_author_table(
+            self.config['followed_authors'],
+            last_selected=last_selected if last_selected else None
+        )
         self.console.print()  # 空行
 
         # 智能选择：检查是否有上次的选择
-        last_selected = self.config.get('user_preferences', {}).get('last_selected_authors', [])
         remember_enabled = self.config.get('user_preferences', {}).get('remember_selection', True)
 
         selected_authors = None
@@ -219,57 +226,140 @@ class MainMenu:
                 )
 
             selected_authors = checkbox_with_keybindings(
-                "请选择要更新的作者（Space 勾选，Enter 确认，ESC 返回）:",
+                "请选择要更新的作者（Space 勾选，Enter 确认）:",
                 choices=author_choices,
                 style=self.custom_style,
-                validate=lambda x: x is None or len(x) > 0 or "至少选择一位作者"  # 允许 ESC 返回 None
+                validate=lambda x: len(x) > 0 or "至少选择一位作者"
             )
 
             if not selected_authors:
                 return
 
-            self.console.print(f"\n[green]已选择 {len(selected_authors)} 位作者[/green]\n")
+            self.console.print(f"\n[green]✓ 已选择 {len(selected_authors)} 位作者:[/green]\n")
 
-        # Phase 2-B 需求 3: 设置下载页数
-        page_options = select_with_keybindings(
-            "选择下载页数:",
+            # 显示选中作者的汇总表格（带标记）
+            self._show_selection_summary(selected_authors)
+            self.console.print()
+
+            # 确认选择，提供返回机会
+            confirm_choice = select_with_keybindings(
+                "确认更新这些作者吗？",
+                choices=[
+                    questionary.Choice("✅ 确认并继续", value='confirm'),
+                    questionary.Choice("🔄 重新选择作者", value='reselect'),
+                    questionary.Choice("← 返回主菜单", value='cancel'),
+                ],
+                style=self.custom_style,
+                default='confirm'
+            )
+
+            if confirm_choice is None or confirm_choice == 'cancel':
+                self.console.print("\n[yellow]✓ 已取消更新，返回主菜单[/yellow]\n")
+                return
+
+            if confirm_choice == 'reselect':
+                # 重新选择作者，递归调用自己
+                return self._run_update()
+
+        # Phase 2-B 需求 3: 设置下载限制
+        # 第一层：选择限制方式
+        download_mode = select_with_keybindings(
+            "选择下载限制方式:",
             choices=[
-                questionary.Choice("📄 仅第 1 页（约 50 篇，推荐测试）", value=1),
-                questionary.Choice("📄 前 3 页（约 150 篇）", value=3),
-                questionary.Choice("📄 前 5 页（约 250 篇）", value=5),
-                questionary.Choice("📄 前 10 页（约 500 篇）", value=10),
-                questionary.Choice("📚 全部页面（可能很多）", value=None),
-                questionary.Choice("⚙️  自定义页数", value='custom'),
+                questionary.Choice("📄 按页数限制（快速，推荐测试）", value='pages'),
+                questionary.Choice("📊 按帖子数量限制（精确控制）", value='posts'),
+                questionary.Choice("📚 下载全部内容", value='all'),
                 questionary.Choice("← 返回", value='cancel'),
             ],
             style=self.custom_style,
-            default=1  # 使用 value 而不是 title
+            default='pages'
         )
 
-        if page_options is None or page_options == 'cancel':  # 用户取消或选择返回
+        if download_mode is None or download_mode == 'cancel':
             return
 
-        # 处理自定义页数
-        max_pages = page_options
-        if page_options == 'custom':
-            self.console.print("[dim]提示: 留空=全部页面, ESC=返回[/dim]")
-            custom_pages = text_with_keybindings(
-                "请输入页数（留空=全部）:",
-                validate=lambda x: x is None or x == '' or (x.isdigit() and int(x) > 0) or "请输入正整数或留空",  # 允许 ESC 返回 None
-                style=self.custom_style
+        max_pages = None
+        max_posts = None
+
+        # 按页数限制
+        if download_mode == 'pages':
+            page_options = select_with_keybindings(
+                "选择下载页数:",
+                choices=[
+                    questionary.Choice("📄 仅第 1 页（约 50 篇，推荐测试）", value=1),
+                    questionary.Choice("📄 前 3 页（约 150 篇）", value=3),
+                    questionary.Choice("📄 前 5 页（约 250 篇）", value=5),
+                    questionary.Choice("📄 前 10 页（约 500 篇）", value=10),
+                    questionary.Choice("⚙️  自定义页数", value='custom'),
+                    questionary.Choice("← 返回", value='cancel'),
+                ],
+                style=self.custom_style,
+                default=1
             )
 
-            if custom_pages is None:  # 用户按 ESC 取消
+            if page_options is None or page_options == 'cancel':
                 return
-            elif custom_pages == '':
-                max_pages = None
-            else:
+
+            if page_options == 'custom':
+                self.console.print("[dim]提示: ESC=返回[/dim]")
+                custom_pages = text_with_keybindings(
+                    "请输入页数（正整数）:",
+                    validate=lambda x: x is None or (x.isdigit() and int(x) > 0) or "请输入正整数",
+                    style=self.custom_style
+                )
+                if custom_pages is None:
+                    return
                 max_pages = int(custom_pages)
+            else:
+                max_pages = page_options
+
+        # 按帖子数量限制
+        elif download_mode == 'posts':
+            post_options = select_with_keybindings(
+                "选择下载帖子数量:",
+                choices=[
+                    questionary.Choice("📝 前 50 篇（推荐测试）", value=50),
+                    questionary.Choice("📝 前 100 篇", value=100),
+                    questionary.Choice("📝 前 200 篇", value=200),
+                    questionary.Choice("📝 前 500 篇", value=500),
+                    questionary.Choice("⚙️  自定义数量", value='custom'),
+                    questionary.Choice("← 返回", value='cancel'),
+                ],
+                style=self.custom_style,
+                default=50
+            )
+
+            if post_options is None or post_options == 'cancel':
+                return
+
+            if post_options == 'custom':
+                self.console.print("[dim]提示: ESC=返回[/dim]")
+                custom_posts = text_with_keybindings(
+                    "请输入帖子数量（正整数）:",
+                    validate=lambda x: x is None or (x.isdigit() and int(x) > 0) or "请输入正整数",
+                    style=self.custom_style
+                )
+                if custom_posts is None:
+                    return
+                max_posts = int(custom_posts)
+            else:
+                max_posts = post_options
+
+        # 全部内容
+        elif download_mode == 'all':
+            max_pages = None
+            max_posts = None
 
         # 显示确认信息
-        page_desc = f"前 {max_pages} 页" if max_pages else "全部页面"
+        if max_pages:
+            limit_desc = f"前 {max_pages} 页"
+        elif max_posts:
+            limit_desc = f"前 {max_posts} 篇帖子"
+        else:
+            limit_desc = "全部内容"
+
         self.console.print(
-            f"\n[cyan]将为 {len(selected_authors)} 位作者更新 {page_desc}[/cyan]\n"
+            f"\n[cyan]将为 {len(selected_authors)} 位作者下载 {limit_desc}[/cyan]\n"
         )
 
         # 检查是否使用 Python 爬虫
@@ -279,7 +369,7 @@ class MainMenu:
             self.console.print(f"[cyan]🐍 使用 Python 爬虫更新...[/cyan]\n")
             try:
                 # Run async Python scraper
-                asyncio.run(self._run_python_scraper(selected_authors, max_pages))
+                asyncio.run(self._run_python_scraper(selected_authors, max_pages, max_posts))
 
                 # 保存本次选择的作者（用于下次快速选择）
                 self._save_author_selection(selected_authors)
@@ -318,13 +408,15 @@ class MainMenu:
     async def _run_python_scraper(
         self,
         selected_authors: list = None,
-        max_pages: int = None
+        max_pages: int = None,
+        max_posts: int = None
     ) -> None:
         """运行 Python 爬虫更新（异步）
 
         Args:
             selected_authors: 选中的作者列表（None 表示全部）
             max_pages: 每个作者下载的最大页数（None 表示全部）
+            max_posts: 每个作者下载的最大帖子数（None 表示全部）
         """
         from ..scraper.archiver import ForumArchiver
 
@@ -333,11 +425,11 @@ class MainMenu:
         # 使用选中的作者，如果未提供则使用全部
         authors_to_update = selected_authors or self.config['followed_authors']
 
-        # 如果 max_pages 未提供，使用默认值（测试模式）
-        if max_pages is None:
+        # 如果 max_pages 和 max_posts 都未提供，使用默认值（测试模式）
+        if max_pages is None and max_posts is None:
             max_pages = 1  # 默认测试模式
             self.console.print(
-                "[yellow]提示: 未指定页数，默认只下载第 1 页（测试模式）[/yellow]\n"
+                "[yellow]提示: 未指定下载限制，默认只下载第 1 页（测试模式）[/yellow]\n"
             )
 
         for idx, author in enumerate(authors_to_update, 1):
@@ -355,13 +447,18 @@ class MainMenu:
                 f"更新作者: {author_name}[/bold cyan]"
             )
 
-            # 显示页数信息
-            page_info = f"前 {max_pages} 页" if max_pages else "全部页面"
-            self.console.print(f"[dim]  下载范围: {page_info}[/dim]")
+            # 显示下载范围信息
+            if max_posts:
+                limit_info = f"前 {max_posts} 篇帖子"
+            elif max_pages:
+                limit_info = f"前 {max_pages} 页"
+            else:
+                limit_info = "全部内容"
+            self.console.print(f"[dim]  下载范围: {limit_info}[/dim]")
 
             try:
-                # 使用传入的 max_pages 参数
-                result = await archiver.archive_author(author_name, author_url, max_pages)
+                # 使用传入的参数
+                result = await archiver.archive_author(author_name, author_url, max_pages, max_posts)
 
                 # 显示结果
                 self.console.print(
@@ -614,3 +711,40 @@ class MainMenu:
         except Exception as e:
             # 保存失败不影响主流程，只记录警告
             self.console.print(f"[dim yellow]⚠ 保存选择失败: {e}[/dim yellow]")
+
+    def _show_selection_summary(self, selected_authors: list) -> None:
+        """显示选中作者的汇总表格（带标记）
+
+        Args:
+            selected_authors: 用户选择的作者列表
+        """
+        from rich.table import Table
+
+        table = Table(show_header=True, header_style="bold cyan", border_style="dim")
+        table.add_column("状态", justify="center", width=6)
+        table.add_column("作者名", style="cyan")
+        table.add_column("帖子数", justify="right")
+        table.add_column("最后更新", style="dim")
+
+        selected_names = {author['name'] for author in selected_authors}
+
+        for author in self.config['followed_authors']:
+            if author['name'] in selected_names:
+                status = "[green]✅[/green]"
+                name_style = "[bold cyan]"
+            else:
+                status = "[dim]⬜[/dim]"
+                name_style = "[dim]"
+
+            name = f"{name_style}{author['name']}[/]"
+            total_posts = author.get('total_posts', 0)
+            last_update = author.get('last_update', '从未')
+
+            table.add_row(
+                status,
+                name,
+                str(total_posts) if total_posts > 0 else "-",
+                last_update if last_update else "-"
+            )
+
+        self.console.print(table)
