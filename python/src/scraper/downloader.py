@@ -130,12 +130,72 @@ class MediaDownloader:
                         async with session.get(url, headers=headers) as response:
                             # 206 表示部分内容（断点续传），200 表示完整下载
                             if response.status in (200, 206):
+                                # ========== 新增：内容类型验证 ==========
+                                content_type = response.headers.get('Content-Type', '').lower()
+
+                                # 检查是否是 HTML 错误页面
+                                if 'text/html' in content_type:
+                                    self.logger.warning(
+                                        f"下载失败 {url}: 返回 HTML 页面而不是媒体文件 "
+                                        f"(Content-Type: {content_type})"
+                                    )
+                                    # 清理临时文件
+                                    if temp_path.exists():
+                                        temp_path.unlink()
+                                    return False
+
+                                # 验证是否是预期的媒体类型
+                                expected_types = [
+                                    'image/', 'video/', 'application/octet-stream'
+                                ]
+                                if not any(t in content_type for t in expected_types):
+                                    self.logger.warning(
+                                        f"下载失败 {url}: 意外的 Content-Type: {content_type}"
+                                    )
+                                    if temp_path.exists():
+                                        temp_path.unlink()
+                                    return False
+
+                                # ========== 新增：文件大小验证 ==========
+                                content_length = response.headers.get('Content-Length')
+                                if content_length:
+                                    file_size = int(content_length)
+                                    # 如果文件小于 1KB，可能是错误页面
+                                    if file_size < 1024:
+                                        self.logger.warning(
+                                            f"下载失败 {url}: 文件太小 ({file_size} 字节)，"
+                                            f"可能是错误页面"
+                                        )
+                                        if temp_path.exists():
+                                            temp_path.unlink()
+                                        return False
+
+                                # ========== 原有下载逻辑 ==========
                                 # 206 表示服务器支持断点续传，追加写入
                                 mode = 'ab' if response.status == 206 else 'wb'
 
                                 with open(temp_path, mode) as f:
                                     async for chunk in response.content.iter_chunked(8192):
                                         f.write(chunk)
+
+                                # ========== 新增：下载后验证 ==========
+                                # 检查最终文件大小
+                                if temp_path.exists():
+                                    final_size = temp_path.stat().st_size
+                                    if final_size < 1024:
+                                        self.logger.warning(
+                                            f"下载失败 {url}: 最终文件太小 ({final_size} 字节)"
+                                        )
+                                        temp_path.unlink()
+                                        return False
+
+                                    # 验证文件魔数
+                                    if not self._verify_file_type(temp_path, output_path.suffix):
+                                        self.logger.warning(
+                                            f"下载失败 {url}: 文件格式验证失败"
+                                        )
+                                        temp_path.unlink()
+                                        return False
 
                                 # 下载完成，重命名临时文件
                                 temp_path.rename(output_path)
@@ -242,3 +302,59 @@ class MediaDownloader:
                 ext = '.bin'
 
         return ext
+
+    def _verify_file_type(self, file_path: Path, expected_ext: str) -> bool:
+        """验证文件类型（通过魔数）
+
+        Args:
+            file_path: 文件路径
+            expected_ext: 预期的文件扩展名（如 .jpg, .mp4）
+
+        Returns:
+            True if valid, False otherwise
+        """
+        try:
+            # 读取文件头（前 12 字节足够识别大多数格式）
+            with open(file_path, 'rb') as f:
+                header = f.read(12)
+
+            if not header:
+                return False
+
+            # 文件魔数映射
+            magic_numbers = {
+                # 图片格式
+                '.jpg': [b'\xFF\xD8\xFF'],
+                '.jpeg': [b'\xFF\xD8\xFF'],
+                '.png': [b'\x89\x50\x4E\x47'],
+                '.gif': [b'GIF87a', b'GIF89a'],
+                '.webp': [b'RIFF'],
+                '.bmp': [b'BM'],
+
+                # 视频格式
+                '.mp4': [b'\x00\x00\x00', b'ftyp'],  # MP4 容器
+                '.webm': [b'\x1A\x45\xDF\xA3'],      # WebM/Matroska
+                '.avi': [b'RIFF'],
+                '.mov': [b'\x00\x00\x00', b'ftyp'],  # QuickTime
+            }
+
+            expected_magics = magic_numbers.get(expected_ext.lower(), [])
+            if not expected_magics:
+                # 未知格式，暂时通过
+                return True
+
+            # 检查文件头是否匹配任意一个魔数
+            for magic in expected_magics:
+                if header.startswith(magic) or magic in header[:8]:
+                    return True
+
+            # 特殊处理：HTML 文件（明确拒绝）
+            if header.startswith(b'<!DOCTYPE') or header.startswith(b'<html'):
+                self.logger.warning(f"检测到 HTML 文件: {file_path.name}")
+                return False
+
+            return False
+
+        except Exception as e:
+            self.logger.error(f"文件类型验证失败: {str(e)}")
+            return True  # 验证失败时暂时通过，避免误杀
