@@ -63,7 +63,7 @@ class ForumArchiver:
         self.logger = setup_logger('archiver', log_dir)
 
         # Initialize sub-components
-        self.extractor = PostExtractor(self.base_url, log_dir)
+        self.extractor = PostExtractor(self.base_url, log_dir, config)
         self.downloader = MediaDownloader(
             max_concurrent=config.get('advanced', {}).get('max_concurrent', 5),
             retry_count=config.get('advanced', {}).get('download_retry', 3),
@@ -92,7 +92,8 @@ class ForumArchiver:
         self,
         author_name: str,
         author_url: str,
-        max_pages: Optional[int] = None
+        max_pages: Optional[int] = None,
+        max_posts: Optional[int] = None
     ) -> Dict:
         """归档作者的所有帖子
 
@@ -100,6 +101,7 @@ class ForumArchiver:
             author_name: Author name
             author_url: Author's post list URL
             max_pages: Maximum pages to scrape (None = all)
+            max_posts: Maximum posts to archive (None = all)
 
         Returns:
             Statistics dict with keys: total, new, skipped, failed
@@ -107,6 +109,10 @@ class ForumArchiver:
         self.logger.info(f"=" * 60)
         self.logger.info(f"开始归档作者: {author_name}")
         self.logger.info(f"作者 URL: {author_url}")
+        if max_posts:
+            self.logger.info(f"限制: 最多 {max_posts} 篇帖子")
+        elif max_pages:
+            self.logger.info(f"限制: 最多 {max_pages} 页")
         self.logger.info(f"=" * 60)
 
         try:
@@ -118,6 +124,7 @@ class ForumArchiver:
             post_urls = await self.extractor.collect_post_urls(
                 author_url,
                 max_pages,
+                max_posts,
                 author_name=author_name
             )
 

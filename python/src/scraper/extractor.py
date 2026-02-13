@@ -23,18 +23,26 @@ from .utils import parse_relative_url
 class PostExtractor:
     """帖子提取器（使用 Python Playwright API）"""
 
-    def __init__(self, base_url: str, log_dir: Path):
+    def __init__(self, base_url: str, log_dir: Path, config: dict = None):
         """Initialize extractor
 
         Args:
             base_url: Forum base URL (e.g., https://example.com)
             log_dir: Directory for log files
+            config: Configuration dictionary (optional)
         """
         self.base_url = base_url.rstrip('/')
         self.logger = setup_logger('extractor', log_dir)
         self.playwright: Optional[Playwright] = None
         self.browser: Optional[Browser] = None
         self.page: Optional[Page] = None
+
+        # 从配置读取超时和等待策略
+        self.config = config or {}
+        self.page_timeout = self.config.get('advanced', {}).get('page_load_timeout', 60) * 1000  # 转为毫秒
+        self.wait_until = self.config.get('advanced', {}).get('wait_until', 'domcontentloaded')
+
+        self.logger.info(f"页面超时: {self.page_timeout}ms, 等待策略: {self.wait_until}")
 
     async def start(self):
         """启动浏览器"""
@@ -64,6 +72,7 @@ class PostExtractor:
         self,
         author_url: str,
         max_pages: Optional[int] = None,
+        max_posts: Optional[int] = None,
         author_name: Optional[str] = None
     ) -> List[str]:
         """收集作者的所有帖子 URL（两阶段的第一阶段）
@@ -71,12 +80,20 @@ class PostExtractor:
         Args:
             author_url: Author's post list URL
             max_pages: Maximum number of pages to scrape (None = all)
+            max_posts: Maximum number of posts to collect (None = all, takes priority over max_pages)
             author_name: Expected author name for filtering (optional)
 
         Returns:
             List of post URLs
         """
         self.logger.info(f"开始收集帖子列表: {author_url}")
+
+        # 显示限制信息
+        if max_posts:
+            self.logger.info(f"限制: 最多收集 {max_posts} 篇帖子")
+        elif max_pages:
+            self.logger.info(f"限制: 最多收集 {max_pages} 页")
+
         post_urls = []
         page_num = 1
 
@@ -86,7 +103,14 @@ class PostExtractor:
             self.logger.info("检测到作者主页格式，跳过作者过滤")
 
         while True:
+            # 检查帖子数限制（优先）
+            if max_posts and len(post_urls) >= max_posts:
+                self.logger.info(f"已达到帖子数限制: {len(post_urls)} 篇")
+                break
+
+            # 检查页数限制
             if max_pages and page_num > max_pages:
+                self.logger.info(f"已达到页数限制: {page_num-1} 页")
                 break
 
             # 构造分页 URL
@@ -99,7 +123,7 @@ class PostExtractor:
 
             try:
                 self.logger.info(f"正在抓取第 {page_num} 页...")
-                await self.page.goto(current_url, wait_until='networkidle', timeout=30000)
+                await self.page.goto(current_url, wait_until=self.wait_until, timeout=self.page_timeout)
 
                 # 找所有包含帖子链接的行
                 all_rows = await self.page.query_selector_all('table tbody tr')
@@ -134,6 +158,10 @@ class PostExtractor:
                         full_url = parse_relative_url(self.base_url, href)
                         page_post_urls.append(full_url)
 
+                        # 如果有帖子数限制，检查是否已达到
+                        if max_posts and (len(post_urls) + len(page_post_urls)) >= max_posts:
+                            break  # 达到限制，停止添加
+
                 if filtered_count > 0:
                     self.logger.info(f"  过滤掉 {filtered_count} 个其他作者的帖子")
 
@@ -141,8 +169,20 @@ class PostExtractor:
                     self.logger.info(f"第 {page_num} 页无更多匹配的帖子")
                     break
 
+                # 添加本页的帖子URL（可能需要截断以满足max_posts限制）
+                if max_posts:
+                    remaining = max_posts - len(post_urls)
+                    page_post_urls = page_post_urls[:remaining]
+
                 post_urls.extend(page_post_urls)
-                self.logger.info(f"第 {page_num} 页: 找到 {len(page_post_urls)} 篇帖子")
+                self.logger.info(
+                    f"第 {page_num} 页: 收集 {len(page_post_urls)} 篇帖子 "
+                    f"（累计 {len(post_urls)} 篇）"
+                )
+
+                # 如果已达到帖子数限制，退出
+                if max_posts and len(post_urls) >= max_posts:
+                    break
 
                 # 检查是否已达到页数限制
                 if max_pages and page_num >= max_pages:
@@ -180,7 +220,7 @@ class PostExtractor:
         self.logger.info(f"提取帖子详情: {post_url}")
 
         try:
-            await self.page.goto(post_url, wait_until='networkidle', timeout=30000)
+            await self.page.goto(post_url, wait_until=self.wait_until, timeout=self.page_timeout)
 
             # 提取标题（选择器: h4.f16 或 h1）
             title = await self._extract_title()

@@ -37,8 +37,8 @@ followed_authors:
 - name: 纯情母老虎
   url: https://t66y.com/@纯情母老虎
   added_date: '2026-02-12'
-  last_update: '2026-02-12 00:43:32'
-  total_posts: 6
+  last_update: '2026-02-12 14:42:40'
+  total_posts: 12
   total_images: 0
   total_videos: 0
   tags:
@@ -57,8 +57,8 @@ followed_authors:
 - name: 厦门一只狼
   url: https://t66y.com/@厦门一只狼
   added_date: '2026-02-12'
-  last_update: null
-  total_posts: 0
+  last_update: '2026-02-12 14:44:08'
+  total_posts: 10
   total_images: 0
   total_videos: 0
   tags:
@@ -104,6 +104,8 @@ advanced:
   download_retry: 3
   download_timeout: 30
   rate_limit_delay: 0.5
+  page_load_timeout: 60  # 页面加载超时（秒）
+  wait_until: domcontentloaded  # load | domcontentloaded | networkidle
 experimental:
   use_python_scraper: true
   enable_database: false
@@ -113,5 +115,6 @@ legacy:
 user_preferences:
   last_selected_authors:
   - 纯情母老虎
+  - 厦门一只狼
   remember_selection: true
-last_updated: '2026-02-12 00:43:32'
+last_updated: '2026-02-12 14:44:08'
