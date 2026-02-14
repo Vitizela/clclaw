@@ -11,6 +11,7 @@
 | 文档 | 说明 | 适用对象 |
 |------|------|---------|
 | **[PROJECT_OVERVIEW.md](./PROJECT_OVERVIEW.md)** | 项目总览，快速了解项目 | 所有人（首次阅读） |
+| **[FEATURES_DESIGN_OVERVIEW.md](./FEATURES_DESIGN_OVERVIEW.md)** ⭐ | **功能设计总览（AI编程实施入口）** | AI编程助手、工程师 |
 | **[SETUP.md](./SETUP.md)** | 环境安装配置指南 | 首次使用者 |
 | **README.md** | 项目简介（待创建） | 外部访问者 |
 
@@ -45,6 +46,20 @@
 | **[MENU_ENHANCEMENT.md](./MENU_ENHANCEMENT.md)** | 菜单功能增强记录 | ✅ 已完成 + 📝 待实施 |
 | **[AUTHOR_SELECTION_ENHANCEMENT_ANALYSIS.md](./AUTHOR_SELECTION_ENHANCEMENT_ANALYSIS.md)** | 作者选择增强分析（需求1+2）| 📝 分析完成 |
 | **[python/IMPLEMENTATION_STATUS.md](./python/IMPLEMENTATION_STATUS.md)** | 项目实施状态总览 | 🔄 持续更新 |
+
+### 🎨 功能设计文档
+
+| 文档 | 功能 | 状态 | 设计日期 |
+|------|------|------|---------|
+| **[FEATURES_DESIGN_OVERVIEW.md](./FEATURES_DESIGN_OVERVIEW.md)** ⭐ | **功能设计总览（AI编程实施入口）** | 🔄 持续更新 | 2026-02-13 |
+| **[ARCHIVE_PROGRESS_FEATURE_DESIGN.md](./ARCHIVE_PROGRESS_FEATURE_DESIGN.md)** | 归档进度显示功能（V1，已废弃） | ❌ 已废弃 | 2026-02-12 |
+| **[ARCHIVE_PROGRESS_FEATURE_DESIGN_V2.md](./ARCHIVE_PROGRESS_FEATURE_DESIGN_V2.md)** | 归档进度显示功能（V2） | ✅ 已实施 | 2026-02-12 |
+| **[REFRESH_NEW_POSTS_FEATURE_DESIGN.md](./REFRESH_NEW_POSTS_FEATURE_DESIGN.md)** ⭐ | **刷新检测新帖功能（方案C）** | 📝 待实施 | 2026-02-13 |
+
+**重要提示**：
+- ⭐ 标记的文档是AI编程实施的核心入口
+- 实施新功能前，请先阅读 **FEATURES_DESIGN_OVERVIEW.md**
+- 每个功能都有详细的设计文档，包含完整的代码示例和实施步骤
 
 ### 🧪 测试文档
 
@@ -359,6 +374,7 @@ PROJECT_OVERVIEW.md (入口)
 | 1.2 | 2026-02-11 | 添加 Phase 2-B 设计和测试文档 |
 | 1.3 | 2026-02-11 | 添加 Phase 2-B 完成报告和问题修复文档 |
 | 1.4 | 2026-02-12 | 添加增量改进记录、菜单增强记录、作者选择增强分析 |
+| 1.5 | 2026-02-13 | ⭐ 添加功能设计总览文档和刷新检测新帖功能设计 |
 
 ---
 
