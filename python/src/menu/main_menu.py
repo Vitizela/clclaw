@@ -151,35 +151,107 @@ class MainMenu:
         questionary.press_any_key_to_continue("\n按任意键返回...").ask()
 
     def _run_update(self) -> None:
-        """立即更新作者（支持多选和页数设置）"""
-        self.console.print("\n[bold]🔄 选择要更新的作者[/bold]\n")
+        """立即更新作者（支持多选和页数设置）- 循环结构版本"""
 
         if not self.config['followed_authors']:
             show_warning("暂无关注的作者，无需更新", "提示")
             questionary.press_any_key_to_continue("\n按任意键返回...").ask()
             return
 
-        # Phase 2-B 需求 1: 显示作者列表（带上次选择标记）
+        # ⭐ 关键：在循环外定义，保持状态
+        selected_authors = None
+
+        # ⭐ 主循环：允许用户在操作间自由切换
+        while True:
+            self.console.print("\n[bold]🔄 选择要更新的作者[/bold]\n")
+
+            # 显示作者列表（带选择标记）
+            self._show_author_list_with_selection(selected_authors)
+
+            # 显示操作菜单
+            action_choice = self._show_action_menu()
+
+            if action_choice is None or action_choice == 'cancel':
+                return  # 退出整个功能
+
+            elif action_choice == 'refresh':
+                # 刷新检测新帖
+                asyncio.run(self._refresh_check_new_posts())
+                continue  # ⭐ 返回循环开始，保留 selected_authors
+
+            elif action_choice == 'update_new':
+                # 只更新有新帖的作者
+                self._update_authors_with_new_posts()
+                return  # 完成后退出
+
+            elif action_choice == 'all':
+                # 更新所有作者
+                selected_authors = self.config['followed_authors']
+                self.console.print(
+                    f"\n[green]✓ 将更新所有作者（{len(selected_authors)} 位）[/green]\n"
+                )
+                break  # ⭐ 退出循环，进入下载设置
+
+            elif action_choice == 'select':
+                # 处理作者选择流程
+                result = self._handle_author_selection(selected_authors)
+
+                if result['action'] == 'confirm':
+                    selected_authors = result['authors']
+                    break  # ⭐ 退出循环，进入下载设置
+
+                elif result['action'] == 'back':
+                    selected_authors = result['authors']
+                    continue  # ⭐ 返回循环，保留选择
+
+                elif result['action'] == 'reselect':
+                    selected_authors = None  # 清除选择
+                    continue  # ⭐ 返回循环
+
+                elif result['action'] == 'cancel':
+                    continue  # 返回操作菜单
+
+        # ⭐ 退出循环后，继续下载限制设置并归档
+        if selected_authors:
+            self._configure_and_download(selected_authors)
+
+    def _show_author_list_with_selection(self, selected_authors: list = None) -> None:
+        """显示作者列表，标记当前选择
+
+        Args:
+            selected_authors: 当前选择的作者列表
+        """
         self.console.print("[cyan]当前关注的作者:[/cyan]\n")
 
-        # 获取上次选择的作者名列表
-        last_selected = self.config.get('user_preferences', {}).get('last_selected_authors', [])
+        # 确定要显示的选择标记
+        if selected_authors:
+            display_selected = [a['name'] for a in selected_authors]
+            self.console.print(
+                f"[green]✓ 当前已选择 {len(selected_authors)} 位作者[/green]\n"
+            )
+        else:
+            last_saved = self.config.get('user_preferences', {}).get('last_selected_authors', [])
+            display_selected = last_saved if last_saved else None
 
-        # 传递 last_selected 和 new_posts_cache 参数，显示选中标记和新帖标记
+        # 显示表格
         show_author_table(
             self.config['followed_authors'],
-            last_selected=last_selected if last_selected else None,
+            last_selected=display_selected,
             new_posts_marks=self.new_posts_cache if self.new_posts_cache else None
         )
         self.console.print()  # 空行
 
-        # 添加刷新选项
+    def _show_action_menu(self) -> str:
+        """显示操作菜单
+
+        Returns:
+            用户选择的操作
+        """
         action_choices = [
             questionary.Choice("🔄 刷新检测新帖", value='refresh'),
             questionary.Choice("✅ 选择作者更新", value='select'),
         ]
 
-        # 只有在已经检测过新帖时才显示"只更新有新帖的作者"选项
         if self.new_posts_cache:
             action_choices.append(
                 questionary.Choice("🆕 只更新有新帖的作者", value='update_new')
@@ -190,91 +262,85 @@ class MainMenu:
             questionary.Choice("← 返回主菜单", value='cancel'),
         ])
 
-        action_choice = select_with_keybindings(
+        return select_with_keybindings(
             "请选择操作：",
             choices=action_choices,
             style=self.custom_style,
             default='select'
         )
 
-        if action_choice is None or action_choice == 'cancel':
-            return
+    def _handle_author_selection(self, current_selection: list = None) -> dict:
+        """处理作者选择流程
 
-        if action_choice == 'refresh':
-            # 刷新检测新帖
-            asyncio.run(self._refresh_check_new_posts())
-            # 刷新后重新显示菜单
-            return self._run_update()
+        Args:
+            current_selection: 当前已选择的作者
 
-        if action_choice == 'update_new':
-            # 只更新有新帖的作者
-            return self._update_authors_with_new_posts()
-
-        # 智能选择：检查是否有上次的选择（只在 select 模式下使用）
+        Returns:
+            {
+                'action': 'confirm' | 'back' | 'reselect' | 'cancel',
+                'authors': [...] | None
+            }
+        """
+        # 智能选择：检查是否有上次的选择
         remember_enabled = self.config.get('user_preferences', {}).get('remember_selection', True)
+        last_selected = self.config.get('user_preferences', {}).get('last_selected_authors', [])
 
         selected_authors = None
 
-        # 处理不同的 action_choice
-        if action_choice == 'all':
-            # 更新所有作者，跳过选择流程
-            selected_authors = self.config['followed_authors']
-            self.console.print(f"\n[green]✓ 将更新所有作者（{len(selected_authors)} 位）[/green]\n")
-        elif action_choice == 'select':
-            # 继续选择流程：检查是否有上次的选择且启用了记忆功能
-            if last_selected and remember_enabled:
-                # 验证上次选择的作者是否仍在关注列表中
-                current_author_names = {a['name'] for a in self.config['followed_authors']}
-                valid_last_selected = [name for name in last_selected if name in current_author_names]
+        # 如果有上次选择且启用了记忆，提供快速选择
+        if last_selected and remember_enabled and current_selection is None:
+            current_author_names = {a['name'] for a in self.config['followed_authors']}
+            valid_last_selected = [name for name in last_selected if name in current_author_names]
 
-                if valid_last_selected:
-                    self.console.print(f"[dim]上次选择了 {len(valid_last_selected)} 位作者: {', '.join(valid_last_selected[:3])}{'...' if len(valid_last_selected) > 3 else ''}[/dim]\n")
+            if valid_last_selected:
+                self.console.print(
+                    f"[dim]上次选择了 {len(valid_last_selected)} 位作者: "
+                    f"{', '.join(valid_last_selected[:3])}"
+                    f"{'...' if len(valid_last_selected) > 3 else ''}[/dim]\n"
+                )
 
-                    quick_choice = select_with_keybindings(
-                        "选择方式:",
-                        choices=[
-                            questionary.Choice(f"⚡ 使用上次的选择（{len(valid_last_selected)} 位作者）", value='last'),
-                            questionary.Choice("🔄 重新选择作者", value='reselect'),
-                            questionary.Choice("← 返回", value='cancel'),
-                        ],
-                        style=self.custom_style,
-                        default='last'
+                quick_choice = select_with_keybindings(
+                    "选择方式:",
+                    choices=[
+                        questionary.Choice(f"⚡ 使用上次的选择（{len(valid_last_selected)} 位作者）", value='last'),
+                        questionary.Choice("🔄 重新选择作者", value='reselect'),
+                        questionary.Choice("← 返回", value='cancel'),
+                    ],
+                    style=self.custom_style,
+                    default='last'
+                )
+
+                if quick_choice is None or quick_choice == 'cancel':
+                    return {'action': 'cancel', 'authors': None}
+
+                if quick_choice == 'last':
+                    selected_authors = [
+                        a for a in self.config['followed_authors']
+                        if a['name'] in valid_last_selected
+                    ]
+                    self.console.print(
+                        f"\n[green]✓ 已加载上次的选择（{len(selected_authors)} 位作者）[/green]\n"
                     )
 
-                    if quick_choice is None or quick_choice == 'cancel':  # 用户取消或选择返回
-                        return
-
-                    if quick_choice == 'last':
-                        # 使用上次的选择
-                        selected_authors = [a for a in self.config['followed_authors'] if a['name'] in valid_last_selected]
-                        self.console.print(f"\n[green]✓ 已加载上次的选择（{len(selected_authors)} 位作者）[/green]\n")
-                    # 如果选择 'reselect'，继续下面的多选界面
-        else:
-            return
-
-        # 如果还没有选择作者（首次使用或选择重新选择），进入多选界面
+        # 如果还没有选择，进入多选界面
         if selected_authors is None:
-            # Phase 2-B 需求 2: 多选作者界面
             author_choices = []
             for author in self.config['followed_authors']:
-                # 显示格式: "作者名 (帖子数 篇)"
                 label = f"{author['name']}"
                 total_posts = author.get('total_posts', 0)
                 if total_posts > 0:
                     label += f" ({total_posts} 篇)"
 
-                # 如果有上次选择，使用上次的选择作为默认；否则全选
-                if last_selected:
+                # 默认选择：如果有当前选择，使用当前；否则使用上次；否则全选
+                if current_selection:
+                    checked = author['name'] in [a['name'] for a in current_selection]
+                elif last_selected:
                     checked = author['name'] in last_selected
                 else:
                     checked = True
 
                 author_choices.append(
-                    questionary.Choice(
-                        title=label,
-                        value=author,  # 保存完整的 author 对象
-                        checked=checked
-                    )
+                    questionary.Choice(title=label, value=author, checked=checked)
                 )
 
             selected_authors = checkbox_with_keybindings(
@@ -285,36 +351,45 @@ class MainMenu:
             )
 
             if not selected_authors:
-                return
+                return {'action': 'cancel', 'authors': None}
 
             self.console.print(f"\n[green]✓ 已选择 {len(selected_authors)} 位作者:[/green]\n")
 
-            # 显示选中作者的汇总表格（带标记）
+            # 显示选中作者的汇总表格
             self._show_selection_summary(selected_authors)
             self.console.print()
 
-            # 确认选择，提供返回机会
-            confirm_choice = select_with_keybindings(
-                "确认更新这些作者吗？",
-                choices=[
-                    questionary.Choice("✅ 确认并继续", value='confirm'),
-                    questionary.Choice("🔄 重新选择作者", value='reselect'),
-                    questionary.Choice("← 返回主菜单", value='cancel'),
-                ],
-                style=self.custom_style,
-                default='confirm'
-            )
+        # 确认选择
+        confirm_choice = select_with_keybindings(
+            "确认更新这些作者吗？",
+            choices=[
+                questionary.Choice("✅ 确认并继续", value='confirm'),
+                questionary.Choice("🔄 重新选择作者", value='reselect'),
+                questionary.Choice("← 返回上一步", value='back'),  # ⭐ 改名
+            ],
+            style=self.custom_style,
+            default='confirm'
+        )
 
-            if confirm_choice is None or confirm_choice == 'cancel':
-                self.console.print("\n[yellow]✓ 已取消更新，返回主菜单[/yellow]\n")
-                return
+        if confirm_choice is None or confirm_choice == 'cancel':
+            return {'action': 'cancel', 'authors': None}
 
-            if confirm_choice == 'reselect':
-                # 重新选择作者，递归调用自己
-                return self._run_update()
+        if confirm_choice == 'confirm':
+            return {'action': 'confirm', 'authors': selected_authors}
 
-        # Phase 2-B 需求 3: 设置下载限制
-        # 第一层：选择限制方式
+        if confirm_choice == 'back':
+            return {'action': 'back', 'authors': selected_authors}  # ⭐ 保存选择
+
+        if confirm_choice == 'reselect':
+            return {'action': 'reselect', 'authors': None}  # 清除选择
+
+    def _configure_and_download(self, selected_authors: list) -> None:
+        """配置下载限制并开始归档
+
+        Args:
+            selected_authors: 要更新的作者列表
+        """
+        # 设置下载限制
         download_mode = select_with_keybindings(
             "选择下载限制方式:",
             choices=[
