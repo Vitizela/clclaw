@@ -15,6 +15,17 @@ from ..utils.display import show_author_table, show_warning
 from ..utils.keybindings import select_with_keybindings, checkbox_with_keybindings, text_with_keybindings
 from ..utils.logger import setup_logger
 
+# Phase 3: 数据库模块
+from ..database import (
+    get_default_connection,
+    get_global_stats,
+    get_author_ranking,
+    get_author_detail_stats,
+    import_all_data,
+    check_all,
+    generate_integrity_report
+)
+
 
 class MainMenu:
     """主菜单系统"""
@@ -43,8 +54,18 @@ class MainMenu:
         # 新帖检测结果缓存
         self.new_posts_cache = {}
 
+        # Phase 3: 初始化数据库连接
+        self.db = None
+        try:
+            self.db = get_default_connection()
+        except Exception as e:
+            self.logger.error(f"数据库连接初始化失败: {e}")
+
     def run(self) -> None:
         """运行主菜单"""
+        # Phase 3: 首次运行检测和数据库初始化
+        self._check_first_run_and_import()
+
         while True:
             self._show_status()
             choice = self._show_main_menu()
@@ -771,10 +792,325 @@ class MainMenu:
         self.console.print(yaml.dump(self.config, allow_unicode=True, sort_keys=False))
         questionary.press_any_key_to_continue("\n按任意键返回...").ask()
 
+    def _check_first_run_and_import(self) -> None:
+        """检查首次运行并导入历史数据（Phase 3）"""
+        if self.db is None:
+            return
+
+        try:
+            # 检查数据库是否已初始化
+            if not self.db.is_initialized():
+                self.db.initialize_database()
+                self.logger.info("数据库初始化完成")
+
+            # 检查是否有数据（判断是否首次运行）
+            stats = get_global_stats(self.db)
+            if stats['total_posts'] == 0 and len(self.config['followed_authors']) > 0:
+                # 有关注的作者但数据库为空，提示导入
+                self._prompt_import_historical_data()
+
+        except Exception as e:
+            self.logger.error(f"首次运行检测失败: {e}")
+
+    def _prompt_import_historical_data(self) -> None:
+        """提示导入历史归档数据"""
+        self.console.print("\n[bold yellow]📊 检测到首次使用统计功能[/bold yellow]\n")
+        self.console.print("系统发现您已有归档数据，需要导入到数据库以启用统计功能。\n")
+
+        # 估算数据量
+        author_count = len(self.config['followed_authors'])
+        self.console.print(f"[cyan]关注作者数:[/cyan] {author_count} 位")
+        self.console.print(f"[cyan]预计时间:[/cyan] ~15 秒\n")
+
+        # 询问是否立即导入
+        choices = ["立即导入", "稍后导入"]
+        choice = select_with_keybindings(
+            "是否立即导入历史数据？",
+            choices=choices,
+            style=self.custom_style
+        )
+
+        if choice and "立即导入" in choice:
+            self._import_historical_data()
+        else:
+            self.console.print("[yellow]已跳过导入。您可以稍后在统计菜单中手动导入。[/yellow]")
+            questionary.press_any_key_to_continue("\n按任意键继续...").ask()
+
+    def _import_historical_data(self) -> None:
+        """导入历史归档数据"""
+        self.console.print("\n[bold]正在导入历史数据...[/bold]\n")
+
+        try:
+            archive_path = self.config['storage']['archive_path']
+
+            # 调用导入函数
+            result = import_all_data(
+                archive_path=archive_path,
+                config=self.config,
+                db=self.db,
+                force_rebuild=False,
+                show_progress=True
+            )
+
+            # 显示结果
+            self.console.print(f"\n[green]✓ 导入完成！[/green]\n")
+            self.console.print(f"  - 作者数: {result['authors_added']}")
+            self.console.print(f"  - 帖子数: {result['posts_added']}")
+            self.console.print(f"  - 媒体数: {result['media_added']}")
+            self.console.print(f"  - 用时: {result['duration_seconds']:.2f} 秒")
+
+            if result.get('errors'):
+                self.console.print(f"\n[yellow]⚠ 遇到 {len(result['errors'])} 个错误（已跳过）[/yellow]")
+
+            questionary.press_any_key_to_continue("\n按任意键继续...").ask()
+
+        except Exception as e:
+            self.console.print(f"\n[red]✗ 导入失败: {e}[/red]")
+            self.logger.error(f"历史数据导入失败: {e}")
+            questionary.press_any_key_to_continue("\n按任意键继续...").ask()
+
     def _show_statistics(self) -> None:
-        """查看统计（Phase 3 后实现）"""
-        show_warning("此功能将在 Phase 3 实现", "功能暂未实现")
-        questionary.press_any_key_to_continue("\n按任意键返回...").ask()
+        """查看统计（Phase 3）"""
+        if self.db is None or not self.db.is_initialized():
+            show_warning("数据库未初始化", "统计功能不可用")
+            questionary.press_any_key_to_continue("\n按任意键返回...").ask()
+            return
+
+        while True:
+            # 获取全局统计
+            try:
+                stats = get_global_stats(self.db)
+            except Exception as e:
+                self.console.print(f"[red]获取统计失败: {e}[/red]")
+                questionary.press_any_key_to_continue("\n按任意键返回...").ask()
+                return
+
+            # 显示统计信息
+            self.console.clear()
+            self.console.print(Panel(
+                f"[cyan]总关注作者:[/cyan] {stats['total_authors']} 位\n"
+                f"[cyan]总归档帖子:[/cyan] {stats['total_posts']} 篇\n"
+                f"[cyan]总下载图片:[/cyan] {stats['total_images']} 张\n"
+                f"[cyan]总下载视频:[/cyan] {stats['total_videos']} 个\n"
+                f"[cyan]占用空间:[/cyan] {stats['total_size_gb']:.2f} GB\n"
+                f"[cyan]最后更新:[/cyan] {stats.get('latest_update', 'N/A')}",
+                title="📊 全局统计",
+                border_style="cyan"
+            ))
+
+            # 显示作者排行榜
+            try:
+                ranking = get_author_ranking(order_by='posts', limit=10, db=self.db)
+
+                if ranking:
+                    self.console.print("\n[bold]📈 作者排行榜（按帖子数）[/bold]\n")
+
+                    table = Table(show_header=True, header_style="bold cyan")
+                    table.add_column("排名", style="dim", width=6)
+                    table.add_column("作者", style="cyan")
+                    table.add_column("帖子", justify="right")
+                    table.add_column("图片", justify="right")
+                    table.add_column("视频", justify="right")
+
+                    for author in ranking[:10]:
+                        table.add_row(
+                            f"#{author['rank']}",
+                            author['name'],
+                            str(author['post_count']),
+                            str(author['image_count']),
+                            str(author['video_count'])
+                        )
+
+                    self.console.print(table)
+
+            except Exception as e:
+                self.console.print(f"[yellow]获取排行榜失败: {e}[/yellow]")
+
+            # 统计菜单
+            choices = [
+                "📋 查看作者详细统计",
+                "🔄 重新导入数据",
+                "🔍 数据完整性检查",
+                "⬅️  返回主菜单"
+            ]
+
+            choice = select_with_keybindings(
+                "\n请选择操作：",
+                choices=choices,
+                style=self.custom_style
+            )
+
+            if choice is None or "返回主菜单" in choice:
+                break
+            elif "查看作者详细统计" in choice:
+                self._show_author_detail_stats()
+            elif "重新导入数据" in choice:
+                self._reimport_data()
+            elif "数据完整性检查" in choice:
+                self._check_data_integrity()
+
+    def _show_author_detail_stats(self) -> None:
+        """查看作者详细统计"""
+        if not self.config['followed_authors']:
+            show_warning("没有关注的作者", "请先关注作者")
+            questionary.press_any_key_to_continue("\n按任意键返回...").ask()
+            return
+
+        # 选择作者
+        author_names = [a['name'] for a in self.config['followed_authors']]
+        author_names.append("⬅️ 返回")
+
+        choice = select_with_keybindings(
+            "选择要查看的作者：",
+            choices=author_names,
+            style=self.custom_style
+        )
+
+        if choice is None or "返回" in choice:
+            return
+
+        # 获取详细统计
+        try:
+            detail = get_author_detail_stats(choice, db=self.db)
+
+            if detail is None:
+                self.console.print(f"[yellow]未找到作者 {choice} 的数据[/yellow]")
+                questionary.press_any_key_to_continue("\n按任意键返回...").ask()
+                return
+
+            # 显示详细信息
+            self.console.clear()
+            self.console.print(f"\n[bold cyan]作者: {detail['basic_info']['name']}[/bold cyan]\n")
+
+            # 基本信息
+            self.console.print("[bold]📌 基本信息[/bold]")
+            self.console.print(f"  关注日期: {detail['basic_info']['added_date']}")
+            self.console.print(f"  最后更新: {detail['basic_info'].get('last_update', 'N/A')}")
+            if detail['basic_info'].get('url'):
+                self.console.print(f"  作者 URL: {detail['basic_info']['url']}")
+
+            # 归档统计
+            self.console.print("\n[bold]📊 归档统计[/bold]")
+            archive_stats = detail['archive_stats']
+            self.console.print(f"  总帖子数: {archive_stats['total_posts']} 篇")
+            self.console.print(f"  总图片数: {archive_stats['total_images']} 张")
+            self.console.print(f"  总视频数: {archive_stats['total_videos']} 个")
+            self.console.print(f"  总大小: {archive_stats['total_size_mb']:.2f} MB")
+            self.console.print(f"  平均图片/帖: {archive_stats['avg_images_per_post']:.1f}")
+            self.console.print(f"  平均视频/帖: {archive_stats['avg_videos_per_post']:.1f}")
+
+            if archive_stats.get('forum_total_posts', 0) > 0:
+                progress = archive_stats.get('archive_progress', 0)
+                self.console.print(f"  归档进度: {progress:.1f}% ({archive_stats['total_posts']}/{archive_stats['forum_total_posts']})")
+
+            # 时间统计
+            self.console.print("\n[bold]📅 时间跨度[/bold]")
+            time_stats = detail['time_stats']
+            if time_stats.get('first_post_date'):
+                self.console.print(f"  最早帖子: {time_stats['first_post_date']}")
+            if time_stats.get('latest_post_date'):
+                self.console.print(f"  最新帖子: {time_stats['latest_post_date']}")
+            if time_stats.get('active_days'):
+                self.console.print(f"  活跃天数: {time_stats['active_days']} 天")
+
+            questionary.press_any_key_to_continue("\n按任意键返回...").ask()
+
+        except Exception as e:
+            self.console.print(f"[red]获取详细统计失败: {e}[/red]")
+            self.logger.error(f"获取作者详细统计失败: {e}")
+            questionary.press_any_key_to_continue("\n按任意键返回...").ask()
+
+    def _reimport_data(self) -> None:
+        """重新导入数据"""
+        self.console.print("\n[yellow]⚠ 这将清空数据库并重新导入所有数据[/yellow]\n")
+
+        choices = ["确认重新导入", "取消"]
+        choice = select_with_keybindings(
+            "确定要继续吗？",
+            choices=choices,
+            style=self.custom_style
+        )
+
+        if choice and "确认" in choice:
+            try:
+                archive_path = self.config['storage']['archive_path']
+
+                result = import_all_data(
+                    archive_path=archive_path,
+                    config=self.config,
+                    db=self.db,
+                    force_rebuild=True,  # 强制重建
+                    show_progress=True
+                )
+
+                self.console.print(f"\n[green]✓ 重新导入完成！[/green]")
+                self.console.print(f"  - 作者数: {result['authors_added']}")
+                self.console.print(f"  - 帖子数: {result['posts_added']}")
+                self.console.print(f"  - 用时: {result['duration_seconds']:.2f} 秒")
+
+                questionary.press_any_key_to_continue("\n按任意键继续...").ask()
+
+            except Exception as e:
+                self.console.print(f"\n[red]✗ 重新导入失败: {e}[/red]")
+                self.logger.error(f"重新导入数据失败: {e}")
+                questionary.press_any_key_to_continue("\n按任意键继续...").ask()
+
+    def _check_data_integrity(self) -> None:
+        """检查数据完整性"""
+        self.console.print("\n[bold]🔍 正在检查数据完整性...[/bold]\n")
+
+        try:
+            archive_path = self.config['storage']['archive_path']
+
+            # 执行检查
+            result = check_all(archive_path, db=self.db, fix=False)
+
+            # 显示结果
+            self.console.print(f"\n[bold]检查结果[/bold]")
+            self.console.print(f"  检查项目: {result['total_checked']}")
+            self.console.print(f"  发现问题: {len(result['issues'])}")
+
+            if result['issues']:
+                # 按严重性分类
+                high = [i for i in result['issues'] if i.get('severity') == 'high']
+                medium = [i for i in result['issues'] if i.get('severity') == 'medium']
+                low = [i for i in result['issues'] if i.get('severity') == 'low']
+
+                if high:
+                    self.console.print(f"\n[red]高严重性: {len(high)} 项[/red]")
+                if medium:
+                    self.console.print(f"[yellow]中严重性: {len(medium)} 项[/yellow]")
+                if low:
+                    self.console.print(f"[dim]低严重性: {len(low)} 项[/dim]")
+
+                # 询问是否自动修复
+                self.console.print("\n")
+                choices = ["自动修复", "生成详细报告", "返回"]
+                choice = select_with_keybindings(
+                    "请选择操作：",
+                    choices=choices,
+                    style=self.custom_style
+                )
+
+                if choice and "自动修复" in choice:
+                    self.console.print("\n[yellow]正在修复...[/yellow]")
+                    fix_result = check_all(archive_path, db=self.db, fix=True)
+                    self.console.print(f"\n[green]✓ 修复完成: {fix_result.get('fixed', 0)} 项[/green]")
+
+                elif choice and "生成详细报告" in choice:
+                    report_file = Path(archive_path).parent / "integrity_report.txt"
+                    generate_integrity_report(archive_path, str(report_file), db=self.db)
+                    self.console.print(f"\n[green]✓ 报告已保存: {report_file}[/green]")
+
+            else:
+                self.console.print("\n[green]✓ 未发现问题，数据完整性良好！[/green]")
+
+            questionary.press_any_key_to_continue("\n按任意键返回...").ask()
+
+        except Exception as e:
+            self.console.print(f"\n[red]✗ 完整性检查失败: {e}[/red]")
+            self.logger.error(f"数据完整性检查失败: {e}")
+            questionary.press_any_key_to_continue("\n按任意键继续...").ask()
 
     def _show_analysis(self) -> None:
         """数据分析（Phase 4 后实现）"""
