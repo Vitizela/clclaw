@@ -7,11 +7,13 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from typing import Dict, Any, List
+from pathlib import Path
 
 from ..config.manager import ConfigManager
 from ..bridge.nodejs_bridge import NodeJSBridge
 from ..utils.display import show_author_table, show_warning
 from ..utils.keybindings import select_with_keybindings, checkbox_with_keybindings, text_with_keybindings
+from ..utils.logger import setup_logger
 
 
 class MainMenu:
@@ -31,6 +33,12 @@ class MainMenu:
         self.console = Console()
         self.config_manager = ConfigManager()
         self.bridge = NodeJSBridge(config['legacy']['nodejs_path'])
+
+        # 初始化日志记录器
+        project_root = Path(__file__).parent.parent.parent.parent
+        log_dir = project_root / 'logs'
+        log_dir.mkdir(exist_ok=True)
+        self.logger = setup_logger('menu', log_dir)
 
     def run(self) -> None:
         """运行主菜单"""
