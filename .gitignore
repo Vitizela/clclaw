@@ -59,6 +59,7 @@ yarn-error.log*
 # 数据库
 python/data/*.db
 python/data/*.db-journal
+python/data/*.json
 
 # 日志
 logs/
