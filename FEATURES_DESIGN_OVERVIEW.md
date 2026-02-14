@@ -455,31 +455,50 @@ author['forum_total_posts'] = max(old_total, new_total)
 
 ## 🎯 下一步行动
 
+### 当前计划（本周）
+
+1. **实施 Phase 3：数据库 + 基础统计** ⭐ 当前
+   - 优先级：P0
+   - 预计：3-4 天
+   - 状态：📝 设计完成，待实施
+   - 设计文档：[PHASE3_DETAILED_PLAN.md](./PHASE3_DETAILED_PLAN.md)
+   - 任务清单：#17-#25
+   - 核心内容：
+     - SQLite 数据库（4 表 + 索引 + 视图 + 触发器）
+     - 历史数据导入（<15 秒）
+     - 实时同步机制
+     - 统计菜单（全局统计、作者排行）
+     - 数据完整性检查
+
 ### 近期计划（1-2周）
 
-1. **实施 NF-001：刷新检测新帖**
-   - 优先级：P1
-   - 预计：3-4天
-   - 负责人：待分配
+2. **Phase 4：数据分析 + 可视化**
+   - 词云生成（jieba 分词）
+   - 发帖趋势图（matplotlib）
+   - 时间热力图（小时 x 星期）
+   - HTML 报告生成
+   - 参考：[ADR-002](./ADR-002_Python_Migration_Plan.md) 第 5.4 节
 
 ### 中期计划（1-2月）
 
-2. **Phase 3：数据分析功能**
-   - 统计分析
-   - 可视化报告
-   - 参考：[ADR-002](./ADR-002_Python_Migration_Plan.md)
+3. **Phase 5：完善与优化**
+   - 命令行模式完善
+   - 日志系统
+   - 错误处理与重试
+   - 性能优化
+   - 文档完善
+   - 参考：[ADR-002](./ADR-002_Python_Migration_Plan.md) 第 5.5 节
 
-3. **Phase 4：定时任务**
+### 长期计划（可选）
+
+4. **定时任务与通知**
    - 自动更新
-   - 通知功能
-   - 参考：[ADR-002](./ADR-002_Python_Migration_Plan.md)
+   - 新帖通知
+   - 定时报告
 
-### 长期计划（2-3月）
-
-4. **Phase 5：Web界面**
+5. **Web 界面**（低优先级）
    - 浏览归档
    - 在线配置
-   - 参考：[ADR-002](./ADR-002_Python_Migration_Plan.md)
 
 ---
 
@@ -493,6 +512,7 @@ author['forum_total_posts'] = max(old_total, new_total)
 - [迁移指南](./MIGRATION_GUIDE.md)
 - [迁移进度](./MIGRATION_PROGRESS.md)
 - [实施状态](./python/IMPLEMENTATION_STATUS.md)
+- [Phase 3 详细计划](./PHASE3_DETAILED_PLAN.md) ⭐ 最新
 
 ### 完成报告
 - [Phase 1 完成报告](./PHASE1_COMPLETED.md)
