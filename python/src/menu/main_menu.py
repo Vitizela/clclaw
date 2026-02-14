@@ -40,6 +40,9 @@ class MainMenu:
         log_dir.mkdir(exist_ok=True)
         self.logger = setup_logger('menu', log_dir)
 
+        # 新帖检测结果缓存
+        self.new_posts_cache = {}
+
     def run(self) -> None:
         """运行主菜单"""
         while True:
@@ -162,51 +165,82 @@ class MainMenu:
         # 获取上次选择的作者名列表
         last_selected = self.config.get('user_preferences', {}).get('last_selected_authors', [])
 
-        # 传递 last_selected 参数，显示选中标记
+        # 传递 last_selected 和 new_posts_cache 参数，显示选中标记和新帖标记
         show_author_table(
             self.config['followed_authors'],
-            last_selected=last_selected if last_selected else None
+            last_selected=last_selected if last_selected else None,
+            new_posts_marks=self.new_posts_cache if self.new_posts_cache else None
         )
         self.console.print()  # 空行
 
-        # 智能选择：检查是否有上次的选择
+        # 添加刷新选项
+        action_choice = select_with_keybindings(
+            "请选择操作：",
+            choices=[
+                questionary.Choice("🔄 刷新检测新帖", value='refresh'),
+                questionary.Choice("✅ 选择作者更新", value='select'),
+                questionary.Choice("🆕 只更新有新帖的作者", value='update_new') if self.new_posts_cache else None,
+                questionary.Choice("📥 更新全部作者", value='all'),
+                questionary.Choice("← 返回主菜单", value='cancel'),
+            ],
+            style=self.custom_style,
+            default='select'
+        )
+
+        if action_choice is None or action_choice == 'cancel':
+            return
+
+        if action_choice == 'refresh':
+            # 刷新检测新帖
+            asyncio.run(self._refresh_check_new_posts())
+            # 刷新后重新显示菜单
+            return self._run_update()
+
+        if action_choice == 'update_new':
+            # 只更新有新帖的作者
+            return self._update_authors_with_new_posts()
+
+        # 智能选择：检查是否有上次的选择（只在 select 模式下使用）
         remember_enabled = self.config.get('user_preferences', {}).get('remember_selection', True)
 
         selected_authors = None
 
-        # 如果有上次的选择且启用了记忆功能，提供快速选择
-        if last_selected and remember_enabled:
-            # 验证上次选择的作者是否仍在关注列表中
-            current_author_names = {a['name'] for a in self.config['followed_authors']}
-            valid_last_selected = [name for name in last_selected if name in current_author_names]
+        # 处理不同的 action_choice
+        if action_choice == 'all':
+            # 更新所有作者，跳过选择流程
+            selected_authors = self.config['followed_authors']
+            self.console.print(f"\n[green]✓ 将更新所有作者（{len(selected_authors)} 位）[/green]\n")
+        elif action_choice == 'select':
+            # 继续选择流程：检查是否有上次的选择且启用了记忆功能
+            if last_selected and remember_enabled:
+                # 验证上次选择的作者是否仍在关注列表中
+                current_author_names = {a['name'] for a in self.config['followed_authors']}
+                valid_last_selected = [name for name in last_selected if name in current_author_names]
 
-            if valid_last_selected:
-                self.console.print(f"[dim]上次选择了 {len(valid_last_selected)} 位作者: {', '.join(valid_last_selected[:3])}{'...' if len(valid_last_selected) > 3 else ''}[/dim]\n")
+                if valid_last_selected:
+                    self.console.print(f"[dim]上次选择了 {len(valid_last_selected)} 位作者: {', '.join(valid_last_selected[:3])}{'...' if len(valid_last_selected) > 3 else ''}[/dim]\n")
 
-                quick_choice = select_with_keybindings(
-                    "选择方式:",
-                    choices=[
-                        questionary.Choice(f"⚡ 使用上次的选择（{len(valid_last_selected)} 位作者）", value='last'),
-                        questionary.Choice("🔄 重新选择作者", value='reselect'),
-                        questionary.Choice("📚 更新所有作者", value='all'),
-                        questionary.Choice("← 返回", value='cancel'),
-                    ],
-                    style=self.custom_style,
-                    default='last'
-                )
+                    quick_choice = select_with_keybindings(
+                        "选择方式:",
+                        choices=[
+                            questionary.Choice(f"⚡ 使用上次的选择（{len(valid_last_selected)} 位作者）", value='last'),
+                            questionary.Choice("🔄 重新选择作者", value='reselect'),
+                            questionary.Choice("← 返回", value='cancel'),
+                        ],
+                        style=self.custom_style,
+                        default='last'
+                    )
 
-                if quick_choice is None or quick_choice == 'cancel':  # 用户取消或选择返回
-                    return
+                    if quick_choice is None or quick_choice == 'cancel':  # 用户取消或选择返回
+                        return
 
-                if quick_choice == 'last':
-                    # 使用上次的选择
-                    selected_authors = [a for a in self.config['followed_authors'] if a['name'] in valid_last_selected]
-                    self.console.print(f"\n[green]✓ 已加载上次的选择（{len(selected_authors)} 位作者）[/green]\n")
-                elif quick_choice == 'all':
-                    # 选择所有作者
-                    selected_authors = self.config['followed_authors']
-                    self.console.print(f"\n[green]✓ 将更新所有作者（{len(selected_authors)} 位）[/green]\n")
-                # 如果选择 'reselect'，继续下面的多选界面
+                    if quick_choice == 'last':
+                        # 使用上次的选择
+                        selected_authors = [a for a in self.config['followed_authors'] if a['name'] in valid_last_selected]
+                        self.console.print(f"\n[green]✓ 已加载上次的选择（{len(selected_authors)} 位作者）[/green]\n")
+                    # 如果选择 'reselect'，继续下面的多选界面
+        else:
+            return
 
         # 如果还没有选择作者（首次使用或选择重新选择），进入多选界面
         if selected_authors is None:
@@ -772,3 +806,113 @@ class MainMenu:
             )
 
         self.console.print(table)
+
+    async def _refresh_check_new_posts(self) -> None:
+        """刷新检测所有作者的新帖（方案C实现）"""
+        from rich.progress import Progress, SpinnerColumn, TextColumn
+        from ..scraper.checker import PostChecker
+
+        authors = self.config['followed_authors']
+
+        if not authors:
+            self.console.print("\n[yellow]⚠️  暂无关注的作者[/yellow]\n")
+            return
+
+        self.console.print("\n[yellow]🔍 正在检测新帖（精确模式）...[/yellow]\n")
+
+        # 创建检测器
+        checker = PostChecker(self.config)
+
+        try:
+            await checker.start()
+
+            # 显示进度
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=self.console
+            ) as progress:
+                task = progress.add_task(
+                    f"扫描中... (0/{len(authors)})",
+                    total=len(authors)
+                )
+
+                # 批量检测（限制扫描深度：前3页）
+                results = await checker.batch_check_authors(
+                    authors,
+                    max_pages=3,      # 只扫描前3页（提高速度）
+                    max_concurrent=2  # 并发2个作者
+                )
+
+                progress.update(task, completed=len(authors))
+
+            # 更新缓存
+            self.new_posts_cache = {
+                name: {
+                    'has_new': result.get('has_new', False),
+                    'new_count': result.get('new_count', 0)
+                }
+                for name, result in results.items()
+            }
+
+            # 统计结果
+            new_count = sum(1 for r in results.values() if r.get('has_new', False))
+            total_new_posts = sum(r.get('new_count', 0) for r in results.values())
+
+            self.console.print(
+                f"\n[green]✓ 检测完成！[/green] "
+                f"发现 {new_count}/{len(authors)} 位作者有新帖，"
+                f"共约 {total_new_posts} 篇新帖\n"
+            )
+
+        except Exception as e:
+            self.console.print(f"\n[red]✗ 检测失败: {str(e)}[/red]\n")
+            self.logger.error(f"刷新检测新帖失败: {str(e)}")
+
+        finally:
+            await checker.close()
+
+    def _update_authors_with_new_posts(self) -> None:
+        """只更新有新帖的作者"""
+        if not self.new_posts_cache:
+            self.console.print("\n[yellow]⚠️  请先刷新检测新帖[/yellow]\n")
+            questionary.press_any_key_to_continue("\n按任意键返回...").ask()
+            return
+
+        # 筛选有新帖的作者
+        authors_with_new = [
+            author for author in self.config['followed_authors']
+            if self.new_posts_cache.get(author['name'], {}).get('has_new', False)
+        ]
+
+        if not authors_with_new:
+            self.console.print("\n[green]✓ 所有作者都是最新的，无需更新[/green]\n")
+            questionary.press_any_key_to_continue("\n按任意键返回...").ask()
+            return
+
+        self.console.print(f"\n[cyan]发现 {len(authors_with_new)} 位作者有新帖：[/cyan]\n")
+        for author in authors_with_new:
+            new_count = self.new_posts_cache.get(author['name'], {}).get('new_count', 0)
+            self.console.print(f"  🆕 {author['name']} ({new_count} 篇新帖)")
+
+        self.console.print()
+
+        # 确认是否更新
+        confirm = select_with_keybindings(
+            "确认更新这些作者吗？",
+            choices=[
+                questionary.Choice("✅ 确认并更新", value='confirm'),
+                questionary.Choice("← 返回", value='cancel'),
+            ],
+            style=self.custom_style,
+            default='confirm'
+        )
+
+        if confirm is None or confirm == 'cancel':
+            return
+
+        # 调用更新流程（复用现有逻辑）
+        asyncio.run(self._run_python_scraper(authors_with_new))
+
+        # 保存选择偏好
+        self._save_author_selection(authors_with_new)

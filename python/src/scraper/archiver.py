@@ -30,6 +30,7 @@ from .utils import (
     save_archive_progress
 )
 from ..utils.logger import setup_logger
+from ..data.post_tracker import PostTracker
 
 # Add parent to path for templates import
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -70,6 +71,7 @@ class ForumArchiver:
             timeout=config.get('advanced', {}).get('download_timeout', 30),
             log_dir=log_dir
         )
+        self.tracker = PostTracker()  # Initialize post tracker for URL hash recording
 
         # Rate limiting delay
         self.rate_limit_delay = config.get('advanced', {}).get('rate_limit_delay', 0.5)
@@ -155,6 +157,7 @@ class ForumArchiver:
             new_posts = 0
             skipped_posts = 0
             failed_posts = 0
+            archived_urls = []  # 记录成功归档的URL（用于batch记录）
 
             for idx, post_url in enumerate(post_urls, 1):
                 self.logger.info(f"\n--- 帖子 {idx}/{total_posts} ---")
@@ -186,6 +189,8 @@ class ForumArchiver:
                     if not should_archive(post_dir, post_url):
                         self.logger.info(f"✓ 跳过已归档: {post_data['title']}")
                         skipped_posts += 1
+                        # 已归档的URL也需要记录到tracker（确保数据完整）
+                        archived_urls.append(post_url)
                         continue
 
                     # 归档帖子
@@ -193,6 +198,7 @@ class ForumArchiver:
 
                     if success:
                         new_posts += 1
+                        archived_urls.append(post_url)  # 记录成功归档的URL
                         self.logger.info(f"✓ 归档成功: {post_data['title']}")
                     else:
                         failed_posts += 1
@@ -206,6 +212,11 @@ class ForumArchiver:
                     self.logger.error(f"处理帖子失败: {str(e)}")
                     failed_posts += 1
                     continue
+
+            # 批量记录已归档的URL到tracker（用于新帖检测）
+            if archived_urls:
+                self.logger.info(f"记录已归档URL到tracker: {len(archived_urls)} 篇")
+                self.tracker.add_archived_posts_batch(author_name, archived_urls)
 
             # 汇总统计
             self.logger.info(f"\n" + "=" * 60)

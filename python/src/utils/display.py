@@ -78,7 +78,8 @@ def show_warning(message: str, title: str = "警告"):
 def show_author_table(
     authors: List[Dict[str, Any]],
     show_last_update: bool = True,
-    last_selected: List[str] = None
+    last_selected: List[str] = None,
+    new_posts_marks: Dict[str, Dict] = None
 ):
     """显示作者列表表格
 
@@ -86,8 +87,13 @@ def show_author_table(
         authors: 作者列表
         show_last_update: 是否显示上次更新时间
         last_selected: 上次选择的作者名列表（用于显示 ✅/⬜ 标记）
+        new_posts_marks: 新帖标记字典 {'作者名': {'has_new': True, 'new_count': 5}}
     """
     table = Table(title=f"当前关注 {len(authors)} 位作者")
+
+    # 如果提供了新帖标记数据，添加新帖列
+    if new_posts_marks:
+        table.add_column("新帖", justify="center", width=8)
 
     # 如果提供了上次选择的数据，添加状态列
     if last_selected:
@@ -105,6 +111,19 @@ def show_author_table(
 
     for i, author in enumerate(authors, 1):
         row_data = []
+
+        # 添加新帖标记（如果提供了 new_posts_marks）
+        if new_posts_marks:
+            author_name = author['name']
+            if author_name in new_posts_marks:
+                mark_info = new_posts_marks[author_name]
+                if mark_info.get('has_new', False):
+                    new_count = mark_info.get('new_count', 0)
+                    row_data.append(f"[yellow]🆕({new_count})[/yellow]")
+                else:
+                    row_data.append("")
+            else:
+                row_data.append("")
 
         # 添加状态标记（如果提供了 last_selected）
         if last_selected:
