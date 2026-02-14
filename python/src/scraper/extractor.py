@@ -422,3 +422,4 @@ class PostExtractor:
         except Exception as e:
             self.logger.error(f"视频提取失败: {str(e)}")
             return []
+

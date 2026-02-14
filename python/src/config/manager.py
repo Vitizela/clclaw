@@ -132,12 +132,14 @@ class ConfigManager:
                 indent=2
             )
 
-    def add_author(self, author_name: str, tags: Optional[list] = None) -> None:
+    def add_author(self, author_name: str, tags: Optional[list] = None,
+                   forum_total_posts: Optional[int] = None) -> None:
         """添加关注作者
 
         Args:
             author_name: 作者名
             tags: 可选标签
+            forum_total_posts: 论坛总帖子数（可选）
         """
         config = self.load()
 
@@ -155,6 +157,8 @@ class ConfigManager:
             'total_posts': 0,
             'total_images': 0,
             'total_videos': 0,
+            'forum_total_posts': forum_total_posts,  # 新增：论坛总帖子数
+            'forum_stats_updated': datetime.now().strftime('%Y-%m-%d') if forum_total_posts else None,  # 新增：论坛数据更新时间
             'tags': tags or [],
             'notes': ''
         })

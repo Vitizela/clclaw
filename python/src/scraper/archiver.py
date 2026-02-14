@@ -133,6 +133,14 @@ class ForumArchiver:
 
             total_posts = len(post_urls)
 
+            # 论坛总数 = 实际收集到的主题帖数量
+            # 说明：只统计作者作为楼主的原创主题帖，不包含回复别人的帖子
+            forum_total = total_posts
+            self.logger.info(
+                f"作者 {author_name} 的主题帖总数: {forum_total} "
+                f"(只统计楼主原创帖，不含回复)"
+            )
+
             if total_posts == 0:
                 self.logger.warning(f"未找到任何帖子")
                 return {
@@ -212,7 +220,8 @@ class ForumArchiver:
                 'total': total_posts,
                 'new': new_posts,
                 'skipped': skipped_posts,
-                'failed': failed_posts
+                'failed': failed_posts,
+                'forum_total': forum_total  # 新增：返回论坛总数
             }
 
         except Exception as e:

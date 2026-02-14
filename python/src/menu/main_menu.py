@@ -472,6 +472,12 @@ class MainMenu:
                 author['last_update'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 author['total_posts'] = author.get('total_posts', 0) + result['new']
 
+                # 新增：更新论坛总数（如果归档流程中获取到了）
+                if result.get('forum_total'):
+                    author['forum_total_posts'] = result['forum_total']
+                    author['forum_stats_updated'] = datetime.now().strftime('%Y-%m-%d')
+                    self.logger.info(f"已更新论坛总数: {result['forum_total']}")
+
             except Exception as e:
                 self.console.print(
                     f"  [red]✗ 失败: {str(e)}[/red]"

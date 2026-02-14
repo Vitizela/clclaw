@@ -11,6 +11,50 @@ from typing import List, Dict, Any
 console = Console()
 
 
+def format_archive_progress(author: Dict[str, Any]) -> str:
+    """格式化归档进度显示
+
+    Args:
+        author: 作者数据字典，包含 total_posts 和 forum_total_posts
+
+    Returns:
+        格式化的进度字符串
+
+    Examples:
+        >>> format_archive_progress({'total_posts': 80, 'forum_total_posts': 120})
+        '80/120 (67%)'
+
+        >>> format_archive_progress({'total_posts': 80, 'forum_total_posts': None})
+        '80'
+
+        >>> format_archive_progress({'total_posts': 50, 'forum_total_posts': 50})
+        '50/50 (100%) ✓'
+
+        >>> format_archive_progress({'total_posts': 0, 'forum_total_posts': 120})
+        '0/120 (0%)'
+    """
+    archived = author.get('total_posts', 0)
+    forum_total = author.get('forum_total_posts')
+
+    # 情况1: 没有论坛总数（旧数据或获取失败）
+    if forum_total is None or forum_total == 0:
+        return str(archived)
+
+    # 情况2: 有论坛总数
+    # 计算百分比（避免除以0）
+    if forum_total > 0:
+        percentage = int((archived / forum_total) * 100)
+    else:
+        percentage = 0
+
+    # 情况3: 已完整归档（>=100%）
+    if percentage >= 100:
+        return f"{archived}/{forum_total} (100%) ✓"
+
+    # 情况4: 部分归档
+    return f"{archived}/{forum_total} ({percentage}%)"
+
+
 def show_info(message: str, title: str = "信息"):
     """显示信息面板"""
     console.print(Panel(message, title=f"ℹ️  {title}", border_style="blue"))
@@ -56,7 +100,7 @@ def show_author_table(
         table.add_column("上次更新", style="yellow", width=16)
 
     table.add_column("关注日期", style="magenta", width=10)
-    table.add_column("帖子数", justify="right", width=6)
+    table.add_column("归档进度", justify="right", width=18)
     table.add_column("标签", style="dim")
 
     for i, author in enumerate(authors, 1):
@@ -84,7 +128,7 @@ def show_author_table(
 
         row_data.extend([
             author.get('added_date', 'N/A'),
-            str(author.get('total_posts', 0)),
+            format_archive_progress(author),
             ', '.join(author.get('tags', []))
         ])
 
