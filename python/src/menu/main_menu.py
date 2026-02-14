@@ -174,15 +174,25 @@ class MainMenu:
         self.console.print()  # 空行
 
         # 添加刷新选项
+        action_choices = [
+            questionary.Choice("🔄 刷新检测新帖", value='refresh'),
+            questionary.Choice("✅ 选择作者更新", value='select'),
+        ]
+
+        # 只有在已经检测过新帖时才显示"只更新有新帖的作者"选项
+        if self.new_posts_cache:
+            action_choices.append(
+                questionary.Choice("🆕 只更新有新帖的作者", value='update_new')
+            )
+
+        action_choices.extend([
+            questionary.Choice("📥 更新全部作者", value='all'),
+            questionary.Choice("← 返回主菜单", value='cancel'),
+        ])
+
         action_choice = select_with_keybindings(
             "请选择操作：",
-            choices=[
-                questionary.Choice("🔄 刷新检测新帖", value='refresh'),
-                questionary.Choice("✅ 选择作者更新", value='select'),
-                questionary.Choice("🆕 只更新有新帖的作者", value='update_new') if self.new_posts_cache else None,
-                questionary.Choice("📥 更新全部作者", value='all'),
-                questionary.Choice("← 返回主菜单", value='cancel'),
-            ],
+            choices=action_choices,
             style=self.custom_style,
             default='select'
         )
