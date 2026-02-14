@@ -871,6 +871,35 @@ class MainMenu:
                 for name, result in results.items()
             }
 
+            # 【新增】同步更新 forum_total_posts（用于显示归档进度）
+            updated_count = 0
+            for author in self.config['followed_authors']:
+                author_name = author['name']
+                if author_name in results:
+                    result = results[author_name]
+
+                    # 更新论坛总数
+                    if result.get('total_forum'):
+                        old_total = author.get('forum_total_posts', 0)
+                        new_total = result['total_forum']
+                        # 使用最大值：论坛主题帖只增不减
+                        author['forum_total_posts'] = max(old_total, new_total)
+                        author['forum_stats_updated'] = datetime.now().strftime('%Y-%m-%d')
+
+                        # 日志记录
+                        if new_total > old_total:
+                            self.logger.info(f"{author_name}: 论坛总数更新 {old_total} -> {new_total}")
+                            updated_count += 1
+                        elif new_total < old_total:
+                            self.logger.info(f"{author_name}: 论坛总数保持 {old_total} (本次: {new_total})")
+                        else:
+                            self.logger.info(f"{author_name}: 论坛总数不变: {old_total}")
+
+            # 保存配置
+            if updated_count > 0:
+                self.config_manager.save(self.config)
+                self.console.print(f"[dim]✓ 已更新 {updated_count} 位作者的论坛总数[/dim]\n")
+
             # 统计结果
             new_count = sum(1 for r in results.values() if r.get('has_new', False))
             total_new_posts = sum(r.get('new_count', 0) for r in results.values())
