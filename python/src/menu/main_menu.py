@@ -452,6 +452,9 @@ class MainMenu:
 
             # 保存选择（Node.js 更新所有作者，所以保存所有）
             self._save_author_selection(self.config['followed_authors'])
+
+            # 清空新帖缓存（已更新，缓存过时）
+            self.new_posts_cache.clear()
         else:
             self.console.print(f"\n[red]✗ 更新失败[/red]")
 
@@ -547,6 +550,9 @@ class MainMenu:
 
         # 保存更新后的配置
         self.config_manager.save(self.config)
+
+        # 清空新帖缓存（因为已经更新，缓存已过时）
+        self.new_posts_cache.clear()
 
         self.console.print(f"\n[green]✓ 所有作者更新完成[/green]")
 
@@ -926,3 +932,9 @@ class MainMenu:
 
         # 保存选择偏好
         self._save_author_selection(authors_with_new)
+
+        # 清空新帖缓存（已更新，缓存过时）
+        self.new_posts_cache.clear()
+        self.console.print("[dim]✓ 已清空新帖缓存[/dim]")
+
+        questionary.press_any_key_to_continue("\n按任意键返回...").ask()
