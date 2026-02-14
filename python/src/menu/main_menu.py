@@ -482,9 +482,19 @@ class MainMenu:
 
                 # 新增：更新论坛总数（如果归档流程中获取到了）
                 if result.get('forum_total'):
-                    author['forum_total_posts'] = result['forum_total']
+                    # 使用最大值：论坛主题帖只增不减，保留历史最大值
+                    old_total = author.get('forum_total_posts', 0)
+                    new_total = result['forum_total']
+                    author['forum_total_posts'] = max(old_total, new_total)
                     author['forum_stats_updated'] = datetime.now().strftime('%Y-%m-%d')
-                    self.logger.info(f"已更新论坛总数: {result['forum_total']}")
+
+                    # 记录日志
+                    if new_total > old_total:
+                        self.logger.info(f"论坛总数更新: {old_total} -> {new_total}")
+                    elif new_total < old_total:
+                        self.logger.info(f"论坛总数保持: {old_total} (本次扫描: {new_total}, 使用历史最大值)")
+                    else:
+                        self.logger.info(f"论坛总数不变: {old_total}")
 
             except Exception as e:
                 self.console.print(
