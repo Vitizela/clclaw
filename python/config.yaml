@@ -37,25 +37,27 @@ followed_authors:
 - name: 纯情母老虎
   url: https://t66y.com/@纯情母老虎
   added_date: '2026-02-12'
-  last_update: '2026-02-12 20:32:56'
-  total_posts: 18
+  last_update: '2026-02-14 22:25:56'
+  total_posts: 20
   total_images: 0
   total_videos: 0
   tags:
   - from_nodejs
   notes: 通过 Node.js 脚本添加
   forum_total_posts: 6
-  forum_stats_updated: '2026-02-12'
+  forum_stats_updated: '2026-02-14'
 - name: 特兰克斯斯
   url: https://t66y.com/@特兰克斯斯
   added_date: '2026-02-12'
-  last_update: '2026-02-12 16:56:38'
-  total_posts: 2
+  last_update: '2026-02-15 00:48:02'
+  total_posts: 15
   total_images: 0
   total_videos: 0
   tags:
   - from_nodejs
   notes: 通过 Node.js 脚本添加
+  forum_total_posts: 1
+  forum_stats_updated: '2026-02-15'
 - name: 厦门一只狼
   url: https://t66y.com/@厦门一只狼
   added_date: '2026-02-12'
@@ -93,15 +95,15 @@ followed_authors:
 - name: cyruscc
   url: https://t66y.com/@cyruscc
   added_date: '2026-02-13'
-  last_update: null
-  total_posts: 0
+  last_update: '2026-02-14 23:27:26'
+  total_posts: 2
   total_images: 0
   total_videos: 0
   tags:
   - from_nodejs
   notes: 通过 Node.js 脚本添加
   forum_total_posts: 2
-  forum_stats_updated: '2026-02-13'
+  forum_stats_updated: '2026-02-14'
 - name: 骑驴唱戏
   url: https://t66y.com/@骑驴唱戏
   added_date: '2026-02-13'
@@ -117,14 +119,38 @@ followed_authors:
 - name: 幸福的阿狸
   url: https://t66y.com/@幸福的阿狸
   added_date: '2026-02-13'
-  last_update: '2026-02-14 18:47:32'
-  total_posts: 10
+  last_update: '2026-02-14 23:27:30'
+  total_posts: 11
   total_images: 0
   total_videos: 0
   tags:
   - from_nodejs
   notes: 通过 Node.js 脚本添加
   forum_total_posts: 8
+  forum_stats_updated: '2026-02-14'
+- name: 激情褪去
+  url: https://t66y.com/@激情褪去
+  added_date: '2026-02-14'
+  last_update: '2026-02-14 23:27:34'
+  total_posts: 4
+  total_images: 0
+  total_videos: 0
+  tags:
+  - from_nodejs
+  notes: 通过 Node.js 脚本添加
+  forum_total_posts: 4
+  forum_stats_updated: '2026-02-14'
+- name: mengying1014
+  url: https://t66y.com/@mengying1014
+  added_date: '2026-02-14'
+  last_update: '2026-02-14 23:27:38'
+  total_posts: 4
+  total_images: 0
+  total_videos: 0
+  tags:
+  - from_nodejs
+  notes: 通过 Node.js 脚本添加
+  forum_total_posts: 4
   forum_stats_updated: '2026-02-14'
 storage:
   archive_path: /home/ben/Download/t66y
@@ -166,6 +192,6 @@ legacy:
   nodejs_path: ../
 user_preferences:
   last_selected_authors:
-  - 幸福的阿狸
+  - 特兰克斯斯
   remember_selection: true
-last_updated: '2026-02-14 18:47:32'
+last_updated: '2026-02-15 00:48:02'
