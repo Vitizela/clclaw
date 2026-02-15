@@ -1113,9 +1113,9 @@ class MainMenu:
             questionary.press_any_key_to_continue("\n按任意键继续...").ask()
 
     def _show_analysis(self) -> None:
-        """数据分析（Phase 4 后实现）"""
-        show_warning("此功能将在 Phase 4 实现", "功能暂未实现")
-        questionary.press_any_key_to_continue("\n按任意键返回...").ask()
+        """数据分析（Phase 4）"""
+        from ..menu.analysis_menu import show_analysis_menu
+        show_analysis_menu()
 
     def _sync_config_from_nodejs(self) -> None:
         """从 Node.js 的 config.json 同步配置到 config.yaml
