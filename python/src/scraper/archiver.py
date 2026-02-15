@@ -347,7 +347,7 @@ class ForumArchiver:
                 }
 
                 sync_archived_post(
-                    author_name=author_name,
+                    author_name=post_data.get('author', 'Unknown'),
                     post_url=post_data['url'],
                     post_dir=post_dir,
                     metadata=sync_metadata
