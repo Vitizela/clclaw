@@ -321,6 +321,42 @@ class ForumArchiver:
             if progress_file.exists():
                 progress_file.unlink()
 
+            # 同步到数据库（Phase 3 集成）
+            try:
+                from ..database.sync import sync_archived_post
+
+                # 准备同步元数据
+                # 计算目录大小
+                dir_size = 0
+                try:
+                    for f in post_dir.rglob('*'):
+                        if f.is_file():
+                            dir_size += f.stat().st_size
+                except:
+                    pass
+
+                sync_metadata = {
+                    'title': post_data.get('title', ''),
+                    'publish_date': post_data.get('time'),
+                    'image_count': len(post_data.get('images', [])),
+                    'video_count': len(post_data.get('videos', [])),
+                    'images': post_data.get('images', []),
+                    'videos': post_data.get('videos', []),
+                    'content_length': len(post_data.get('content', '')),
+                    'file_size_bytes': dir_size
+                }
+
+                sync_archived_post(
+                    author_name=author_name,
+                    post_url=post_data['url'],
+                    post_dir=post_dir,
+                    metadata=sync_metadata
+                )
+                self.logger.info("  ✓ 已同步到数据库")
+            except Exception as e:
+                self.logger.warning(f"  ⚠️  数据库同步失败: {e}")
+                # 不影响归档流程
+
             return True
 
         except Exception as e:
