@@ -82,7 +82,11 @@ class ForumArchiver:
 
         # Initialize Jinja2 template engine
         template_dir = Path(__file__).parent.parent / 'templates'
-        self.jinja_env = Environment(loader=FileSystemLoader(str(template_dir)))
+        self.jinja_env = Environment(
+            loader=FileSystemLoader(str(template_dir)),
+            auto_reload=True,  # 自动重新加载模板
+            cache_size=0       # 禁用缓存
+        )
 
         # Register custom filters
         self.jinja_env.filters['clean'] = clean_html_content
