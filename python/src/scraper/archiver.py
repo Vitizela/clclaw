@@ -335,13 +335,34 @@ class ForumArchiver:
                 except:
                     pass
 
+                # 收集已下载的图片文件（相对路径）
+                image_files = []
+                photo_dir = post_dir / 'photo'
+                if photo_dir.exists():
+                    for img_file in sorted(photo_dir.glob('img_*.jpg')):
+                        image_files.append(f"photo/{img_file.name}")
+                    for img_file in sorted(photo_dir.glob('img_*.png')):
+                        image_files.append(f"photo/{img_file.name}")
+                    for img_file in sorted(photo_dir.glob('img_*.jpeg')):
+                        image_files.append(f"photo/{img_file.name}")
+                    for img_file in sorted(photo_dir.glob('img_*.webp')):
+                        image_files.append(f"photo/{img_file.name}")
+
+                # 收集已下载的视频文件（相对路径）
+                video_files = []
+                video_dir = post_dir / 'video'
+                if video_dir.exists():
+                    for vid_file in sorted(video_dir.glob('video_*')):
+                        if not vid_file.name.endswith('.done'):
+                            video_files.append(f"video/{vid_file.name}")
+
                 sync_metadata = {
                     'title': post_data.get('title', ''),
                     'publish_date': post_data.get('time'),
-                    'image_count': len(post_data.get('images', [])),
-                    'video_count': len(post_data.get('videos', [])),
-                    'images': post_data.get('images', []),
-                    'videos': post_data.get('videos', []),
+                    'image_count': len(image_files),
+                    'video_count': len(video_files),
+                    'images': image_files,  # 使用实际文件相对路径
+                    'videos': video_files,  # 使用实际文件相对路径
                     'content_length': len(post_data.get('content', '')),
                     'file_size_bytes': dir_size
                 }
