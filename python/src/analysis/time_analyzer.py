@@ -23,15 +23,24 @@ logger = logging.getLogger(__name__)
 
 # 设置中文字体（matplotlib）
 # 检测并配置中文字体
+_chinese_font_path = None
 try:
     from ..utils.font_config import FontConfig
-    _font_path = FontConfig.get_chinese_font()
-    if _font_path:
+    _chinese_font_path = FontConfig.get_chinese_font()
+    if _chinese_font_path:
         import matplotlib.font_manager as fm
-        fm.fontManager.addfont(_font_path)
-        font_prop = fm.FontProperties(fname=_font_path)
+        # 先尝试安装 wqy-zenhei 字体（如果可用）
+        wqy_font = '/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc'
+        from pathlib import Path
+        if Path(wqy_font).exists():
+            _chinese_font_path = wqy_font
+
+        # 添加字体到 matplotlib
+        fm.fontManager.addfont(_chinese_font_path)
+        font_prop = fm.FontProperties(fname=_chinese_font_path)
         plt.rcParams['font.family'] = font_prop.get_name()
-except Exception:
+except Exception as e:
+    logger.warning(f"中文字体配置失败: {e}")
     pass  # 使用默认字体
 plt.rcParams['axes.unicode_minus'] = False  # 正确显示负号
 
@@ -389,6 +398,12 @@ class TimeAnalyzer:
             labels = [f"{r['make']} {r['model']}" for r in rankings]
             counts = [r['photo_count'] for r in rankings]
 
+            # 获取中文字体
+            from matplotlib.font_manager import FontProperties
+            font_prop = None
+            if _chinese_font_path:
+                font_prop = FontProperties(fname=_chinese_font_path)
+
             # 创建图表
             fig, ax = plt.subplots(figsize=(10, 6))
 
@@ -404,8 +419,14 @@ class TimeAnalyzer:
             ax.set_yticks(y_pos)
             ax.set_yticklabels(labels)
             ax.invert_yaxis()  # 降序排列
-            ax.set_xlabel('照片数量', fontsize=12)
-            ax.set_title(f'相机使用排行 (Top {limit})', fontsize=16, fontweight='bold')
+
+            # 设置标签（使用中文字体）
+            if font_prop:
+                ax.set_xlabel('照片数量', fontsize=12, fontproperties=font_prop)
+                ax.set_title(f'相机使用排行 (Top {limit})', fontsize=16, fontweight='bold', fontproperties=font_prop)
+            else:
+                ax.set_xlabel('Photo Count', fontsize=12)
+                ax.set_title(f'Camera Ranking (Top {limit})', fontsize=16, fontweight='bold')
 
             # 网格
             ax.grid(axis='x', alpha=0.3, linestyle='--')
