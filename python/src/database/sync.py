@@ -132,27 +132,27 @@ def sync_archived_post(
                 file_size_bytes=metadata.get('file_size_bytes', post.file_size_bytes),
                 is_complete=True
             )
-            return True
+            # 注意：不要直接返回，继续执行 Media 同步
+        else:
+            # 创建新帖子
+            url_hash = _calculate_url_hash(post_url)
+            archived_date = datetime.now().strftime("%Y-%m-%d")
 
-        # 创建新帖子
-        url_hash = _calculate_url_hash(post_url)
-        archived_date = datetime.now().strftime("%Y-%m-%d")
-
-        post = Post.create(
-            author_id=author.id,
-            url=post_url,
-            url_hash=url_hash,
-            title=metadata.get('title', '未知标题'),
-            file_path=str(post_dir),
-            archived_date=archived_date,
-            publish_date=metadata.get('publish_date'),
-            image_count=metadata.get('image_count', 0),
-            video_count=metadata.get('video_count', 0),
-            content_length=metadata.get('content_length', 0),
-            word_count=metadata.get('word_count', 0),
-            file_size_bytes=metadata.get('file_size_bytes', 0),
-            is_complete=True
-        )
+            post = Post.create(
+                author_id=author.id,
+                url=post_url,
+                url_hash=url_hash,
+                title=metadata.get('title', '未知标题'),
+                file_path=str(post_dir),
+                archived_date=archived_date,
+                publish_date=metadata.get('publish_date'),
+                image_count=metadata.get('image_count', 0),
+                video_count=metadata.get('video_count', 0),
+                content_length=metadata.get('content_length', 0),
+                word_count=metadata.get('word_count', 0),
+                file_size_bytes=metadata.get('file_size_bytes', 0),
+                is_complete=True
+            )
 
         # 同步媒体文件
         exif_analyzer = _get_exif_analyzer()
