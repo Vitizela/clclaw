@@ -13,9 +13,25 @@ from pathlib import Path
 from typing import Dict, Optional
 from datetime import datetime
 import hashlib
+import logging
 
 from .connection import DatabaseConnection
 from .models import Author, Post, Media
+
+# 延迟导入 ExifAnalyzer（避免循环依赖）
+_exif_analyzer = None
+
+def _get_exif_analyzer():
+    """获取 EXIF 分析器实例（单例模式）"""
+    global _exif_analyzer
+    if _exif_analyzer is None:
+        try:
+            from ..analysis import ExifAnalyzer
+            _exif_analyzer = ExifAnalyzer()
+        except ImportError:
+            logging.warning("ExifAnalyzer 不可用，EXIF 提取功能将被禁用")
+            _exif_analyzer = False
+    return _exif_analyzer if _exif_analyzer is not False else None
 
 
 def _get_db() -> DatabaseConnection:
@@ -139,9 +155,28 @@ def sync_archived_post(
         )
 
         # 同步媒体文件
+        exif_analyzer = _get_exif_analyzer()
+
         for img_path in metadata.get('images', []):
             img_full_path = post_dir / img_path
             img_size = img_full_path.stat().st_size if img_full_path.exists() else 0
+
+            # 提取 EXIF 数据
+            exif_data = {}
+            if exif_analyzer and img_full_path.exists():
+                try:
+                    exif_data = exif_analyzer.extract_exif(str(img_full_path))
+
+                    # 如果有 GPS 信息，尝试反查地理位置
+                    if 'gps_lat' in exif_data and 'gps_lng' in exif_data:
+                        location = exif_analyzer.reverse_geocode(
+                            exif_data['gps_lat'],
+                            exif_data['gps_lng']
+                        )
+                        if location:
+                            exif_data['location'] = location
+                except Exception as e:
+                    logging.debug(f"提取 EXIF 失败: {img_full_path.name} - {e}")
 
             Media.create(
                 post_id=post.id,
@@ -150,7 +185,18 @@ def sync_archived_post(
                 file_name=img_full_path.name,
                 file_path=str(img_full_path),
                 file_size_bytes=img_size,
-                download_date=archived_date
+                download_date=archived_date,
+                # EXIF 数据
+                exif_make=exif_data.get('make'),
+                exif_model=exif_data.get('model'),
+                exif_datetime=exif_data.get('datetime'),
+                exif_iso=exif_data.get('iso'),
+                exif_aperture=exif_data.get('aperture'),
+                exif_shutter_speed=exif_data.get('shutter_speed'),
+                exif_focal_length=exif_data.get('focal_length'),
+                exif_gps_lat=exif_data.get('gps_lat'),
+                exif_gps_lng=exif_data.get('gps_lng'),
+                exif_location=exif_data.get('location')
             )
 
         for vid_path in metadata.get('videos', []):

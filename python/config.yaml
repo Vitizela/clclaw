@@ -117,15 +117,15 @@ followed_authors:
 - name: 幸福的阿狸
   url: https://t66y.com/@幸福的阿狸
   added_date: '2026-02-13'
-  last_update: '2026-02-13 23:34:50'
-  total_posts: 8
+  last_update: '2026-02-14 18:47:32'
+  total_posts: 10
   total_images: 0
   total_videos: 0
   tags:
   - from_nodejs
   notes: 通过 Node.js 脚本添加
   forum_total_posts: 8
-  forum_stats_updated: '2026-02-13'
+  forum_stats_updated: '2026-02-14'
 storage:
   archive_path: /home/ben/Download/t66y
   analysis_path: ./分析报告
@@ -168,4 +168,4 @@ user_preferences:
   last_selected_authors:
   - 幸福的阿狸
   remember_selection: true
-last_updated: '2026-02-13 23:34:50'
+last_updated: '2026-02-14 18:47:32'
