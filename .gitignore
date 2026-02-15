@@ -104,3 +104,10 @@ config.json.backup
 # 系统文件
 .directory
 *.pid
+
+# 本地设置文件
+.claude/settings.local.json
+
+# Python 数据目录
+python/data/analysis/*.png
+python/data/reports/*.html
