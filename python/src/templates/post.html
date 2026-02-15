@@ -1,6 +1,6 @@
 <!--
-    模板版本: v2.6
-    更新日期: 2026-02-12
+    模板版本: v2.7
+    更新日期: 2026-02-14
     新增功能:
     - ✅ 图片嵌入显示（<img> 标签）
     - ✅ 视频嵌入播放（<video> 标签）
@@ -9,6 +9,7 @@
     - ✅ 触摸手势支持（移动端）
     - ✅ 响应式设计
     - ✅ w3m 终端浏览器兼容
+    - ✅ EXIF 照片信息静态显示（v2.7）
 -->
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -132,48 +133,40 @@
             float: right;
         }
 
-        /* ============ EXIF 照片水印 ============ */
+        /* ============ EXIF 照片信息（静态显示）============ */
 
-        /* 水印容器（覆盖在图片上） */
-        .exif-watermark {
-            position: absolute;
-            bottom: 55px; /* 在图片信息条之上 */
-            left: 0;
-            right: 0;
-            background: linear-gradient(to top, rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.4), transparent);
-            padding: 8px 10px 12px 10px;
-            color: white;
-            font-size: 0.7em;
-            line-height: 1.4;
-            opacity: 0;
-            transition: opacity 0.3s;
-            pointer-events: none;
+        /* EXIF 信息容器 */
+        .exif-info {
+            background: #f5f5f5;
+            border-top: 1px solid #e0e0e0;
+            padding: 8px 10px;
+            font-size: 0.75em;
+            color: #333;
+            line-height: 1.5;
         }
 
-        /* 鼠标悬停时显示水印 */
-        .image-item:hover .exif-watermark {
-            opacity: 1;
+        /* EXIF 每一行 */
+        .exif-line {
+            display: flex;
+            align-items: center;
+            margin: 3px 0;
+            min-height: 16px;
         }
 
-        /* 水印图标 */
-        .exif-watermark .icon {
-            opacity: 0.9;
-            margin-right: 3px;
+        /* EXIF 图标 */
+        .exif-icon {
+            font-size: 1.1em;
+            margin-right: 5px;
+            flex-shrink: 0;
+            width: 18px;
+            text-align: center;
         }
 
-        /* 水印行 */
-        .exif-watermark .line {
-            margin-bottom: 2px;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        /* 水印分隔符 */
-        .exif-watermark .sep {
-            margin: 0 4px;
-            opacity: 0.6;
+        /* EXIF 文本 */
+        .exif-text {
+            color: #555;
+            word-break: break-word;
+            flex: 1;
         }
 
         /* 灯箱中的 EXIF 信息增强 */
@@ -186,9 +179,15 @@
 
         /* 移动端优化 */
         @media (max-width: 600px) {
-            .exif-watermark {
-                font-size: 0.65em;
-                padding: 6px 8px 10px 8px;
+            .exif-info {
+                font-size: 0.7em;
+                padding: 6px 8px;
+            }
+
+            .exif-icon {
+                font-size: 1em;
+                width: 16px;
+                margin-right: 4px;
             }
         }
 
@@ -466,12 +465,20 @@
                 onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2VlZSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ibW9ub3NwYWNlIiBmb250LXNpemU9IjE0IiBmaWxsPSIjOTk5Ij7liqDovb3lpLHotKU8L3RleHQ+PC9zdmc+'"
             >
 
-            <!-- EXIF 照片水印 -->
+            <div class="image-info">
+                <span class="index">[{{ loop.index }}]</span>
+                {% if img.size %}
+                <span class="size">{{ img.size }}</span>
+                {% endif %}
+            </div>
+
+            <!-- EXIF 照片信息（静态显示）-->
             {% if img.exif %}
-            <div class="exif-watermark">
+            <div class="exif-info">
                 {% if img.exif.make or img.exif.model %}
-                <div class="line">
-                    <span class="icon">📷</span>
+                <div class="exif-line">
+                    <span class="exif-icon">📷</span>
+                    <span class="exif-text">
                     {% if img.exif.make and img.exif.model %}
                         {{ img.exif.make }} {{ img.exif.model }}
                     {% elif img.exif.model %}
@@ -479,49 +486,38 @@
                     {% else %}
                         {{ img.exif.make }}
                     {% endif %}
+                    </span>
                 </div>
                 {% endif %}
 
                 {% if img.exif.aperture or img.exif.shutter_speed or img.exif.iso or img.exif.focal_length %}
-                <div class="line">
-                    {% if img.exif.aperture %}
-                        f/{{ img.exif.aperture }}
-                    {% endif %}
-                    {% if img.exif.shutter_speed %}
-                        {% if img.exif.aperture %}<span class="sep">·</span>{% endif %}
-                        {{ img.exif.shutter_speed }}s
-                    {% endif %}
-                    {% if img.exif.iso %}
-                        {% if img.exif.aperture or img.exif.shutter_speed %}<span class="sep">·</span>{% endif %}
-                        ISO{{ img.exif.iso }}
-                    {% endif %}
-                    {% if img.exif.focal_length %}
-                        {% if img.exif.aperture or img.exif.shutter_speed or img.exif.iso %}<span class="sep">·</span>{% endif %}
-                        {{ img.exif.focal_length }}mm
-                    {% endif %}
+                <div class="exif-line">
+                    <span class="exif-icon">⚙️</span>
+                    <span class="exif-text">
+                    {% if img.exif.aperture %}f/{{ img.exif.aperture }}{% endif %}
+                    {% if img.exif.shutter_speed %}{% if img.exif.aperture %} · {% endif %}{{ img.exif.shutter_speed }}s{% endif %}
+                    {% if img.exif.iso %}{% if img.exif.aperture or img.exif.shutter_speed %} · {% endif %}ISO{{ img.exif.iso }}{% endif %}
+                    {% if img.exif.focal_length %}{% if img.exif.aperture or img.exif.shutter_speed or img.exif.iso %} · {% endif %}{{ img.exif.focal_length }}mm{% endif %}
+                    </span>
                 </div>
                 {% endif %}
 
                 {% if img.exif.datetime %}
-                <div class="line">
-                    <span class="icon">🕐</span>{{ img.exif.datetime }}
+                <div class="exif-line">
+                    <span class="exif-icon">🕐</span>
+                    <span class="exif-text">{{ img.exif.datetime }}</span>
                 </div>
                 {% endif %}
 
                 {% if img.exif.location %}
-                <div class="line">
-                    <span class="icon">📍</span>{{ img.exif.location }}
+                <div class="exif-line">
+                    <span class="exif-icon">📍</span>
+                    <span class="exif-text">{{ img.exif.location }}</span>
                 </div>
                 {% endif %}
             </div>
             {% endif %}
 
-            <div class="image-info">
-                <span class="index">[{{ loop.index }}]</span>
-                {% if img.size %}
-                <span class="size">{{ img.size }}</span>
-                {% endif %}
-            </div>
             <a href="photo/{{ img.filename }}" class="download-link" download onclick="event.stopPropagation()">
                 ⬇ 下载
             </a>
