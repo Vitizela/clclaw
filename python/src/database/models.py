@@ -664,6 +664,13 @@ class Media:
         if row is None:
             return None
 
+        # EXIF 字段（使用 try-except 处理可能不存在的列）
+        def safe_get(key):
+            try:
+                return row[key]
+            except (KeyError, IndexError):
+                return None
+
         return cls(
             id=row['id'],
             post_id=row['post_id'],
@@ -679,16 +686,16 @@ class Media:
             download_date=row['download_date'],
             created_at=row['created_at'],
             # EXIF 字段
-            exif_make=row.get('exif_make'),
-            exif_model=row.get('exif_model'),
-            exif_datetime=row.get('exif_datetime'),
-            exif_iso=row.get('exif_iso'),
-            exif_aperture=row.get('exif_aperture'),
-            exif_shutter_speed=row.get('exif_shutter_speed'),
-            exif_focal_length=row.get('exif_focal_length'),
-            exif_gps_lat=row.get('exif_gps_lat'),
-            exif_gps_lng=row.get('exif_gps_lng'),
-            exif_location=row.get('exif_location')
+            exif_make=safe_get('exif_make'),
+            exif_model=safe_get('exif_model'),
+            exif_datetime=safe_get('exif_datetime'),
+            exif_iso=safe_get('exif_iso'),
+            exif_aperture=safe_get('exif_aperture'),
+            exif_shutter_speed=safe_get('exif_shutter_speed'),
+            exif_focal_length=safe_get('exif_focal_length'),
+            exif_gps_lat=safe_get('exif_gps_lat'),
+            exif_gps_lng=safe_get('exif_gps_lng'),
+            exif_location=safe_get('exif_location')
         )
 
     @classmethod
