@@ -15,9 +15,13 @@ Phase 4: 数据分析 + 可视化
 """
 
 from .exif_analyzer import ExifAnalyzer
+from .text_analyzer import TextAnalyzer
+from .time_analyzer import TimeAnalyzer
 
 __all__ = [
     'ExifAnalyzer',
+    'TextAnalyzer',
+    'TimeAnalyzer',
 ]
 
 __version__ = '1.0.0'

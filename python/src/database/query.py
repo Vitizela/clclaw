@@ -624,3 +624,36 @@ def search_posts(
     except Exception as e:
         print(f"搜索帖子失败: {e}")
         return []
+
+
+def get_camera_ranking(
+    limit: int = 10,
+    db: Optional['DatabaseConnection'] = None
+) -> List[dict]:
+    """
+    查询相机使用排行（基于 v_camera_stats 视图）
+
+    Args:
+        limit: 返回前 N 个相机（默认 10）
+        db: 数据库连接（可选）
+
+    Returns:
+        相机排行列表 [{'make': '...', 'model': '...', 'photo_count': N}, ...]
+    """
+    if db is None:
+        db = _get_db()
+    conn = db.get_connection()
+
+    try:
+        cursor = conn.execute("""
+            SELECT make, model, photo_count
+            FROM v_camera_stats
+            ORDER BY photo_count DESC
+            LIMIT ?
+        """, (limit,))
+
+        return [dict(row) for row in cursor.fetchall()]
+
+    except Exception as e:
+        print(f"查询相机排行失败: {e}")
+        return []
