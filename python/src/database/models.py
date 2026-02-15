@@ -749,7 +749,18 @@ class Media:
         height: Optional[int] = None,
         duration: Optional[int] = None,
         is_downloaded: bool = True,
-        download_date: Optional[str] = None
+        download_date: Optional[str] = None,
+        # EXIF 元数据（Phase 4）
+        exif_make: Optional[str] = None,
+        exif_model: Optional[str] = None,
+        exif_datetime: Optional[str] = None,
+        exif_iso: Optional[int] = None,
+        exif_aperture: Optional[float] = None,
+        exif_shutter_speed: Optional[str] = None,
+        exif_focal_length: Optional[float] = None,
+        exif_gps_lat: Optional[float] = None,
+        exif_gps_lng: Optional[float] = None,
+        exif_location: Optional[str] = None
     ) -> 'Media':
         """
         创建新媒体记录
@@ -766,6 +777,16 @@ class Media:
             duration: 视频时长
             is_downloaded: 是否已下载
             download_date: 下载日期
+            exif_make: 相机制造商
+            exif_model: 相机型号
+            exif_datetime: 拍摄时间
+            exif_iso: ISO 感光度
+            exif_aperture: 光圈值
+            exif_shutter_speed: 快门速度
+            exif_focal_length: 焦距
+            exif_gps_lat: GPS 纬度
+            exif_gps_lng: GPS 经度
+            exif_location: 地理位置
 
         Returns:
             Media 对象
@@ -777,12 +798,16 @@ class Media:
             """
             INSERT INTO media (
                 post_id, type, url, file_name, file_path, file_size_bytes,
-                width, height, duration, is_downloaded, download_date
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                width, height, duration, is_downloaded, download_date,
+                exif_make, exif_model, exif_datetime, exif_iso, exif_aperture,
+                exif_shutter_speed, exif_focal_length, exif_gps_lat, exif_gps_lng, exif_location
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 post_id, type, url, file_name, file_path, file_size_bytes,
-                width, height, duration, is_downloaded, download_date
+                width, height, duration, is_downloaded, download_date,
+                exif_make, exif_model, exif_datetime, exif_iso, exif_aperture,
+                exif_shutter_speed, exif_focal_length, exif_gps_lat, exif_gps_lng, exif_location
             )
         )
         conn.commit()

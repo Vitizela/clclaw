@@ -119,6 +119,9 @@ def sync_archived_post(
                 url=f"https://t66y.com/@{author_name}"
             )
 
+        # 准备归档日期（Media 创建时需要）
+        archived_date = datetime.now().strftime("%Y-%m-%d")
+
         # 检查帖子是否已存在
         if Post.exists(post_url):
             # 帖子已存在，更新元数据
@@ -136,7 +139,6 @@ def sync_archived_post(
         else:
             # 创建新帖子
             url_hash = _calculate_url_hash(post_url)
-            archived_date = datetime.now().strftime("%Y-%m-%d")
 
             post = Post.create(
                 author_id=author.id,
