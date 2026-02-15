@@ -323,16 +323,17 @@ class ForumArchiver:
             self.logger.error(f"归档帖子失败: {str(e)}", exc_info=True)
             return False
 
-    def _prepare_media_list(self, media_urls: List[str], media_type: str, post_dir: Path) -> List[Dict]:
+    def _prepare_media_list(self, media_urls: List[str], media_type: str, post_dir: Path, post_url: str = None) -> List[Dict]:
         """准备媒体文件列表（用于模板）
 
         Args:
             media_urls: 原始 URL 列表
             media_type: 'image' 或 'video'
             post_dir: 帖子目录
+            post_url: 帖子 URL（用于查询 EXIF 数据）
 
         Returns:
-            [{'filename': 'img_1.jpg', 'url': '...', 'size': '1.2 MB'}, ...]
+            [{'filename': 'img_1.jpg', 'url': '...', 'size': '1.2 MB', 'exif': {...}}, ...]
         """
         media_list = []
 
@@ -348,6 +349,11 @@ class ForumArchiver:
 
         if not subdir.exists():
             return []
+
+        # 如果是图片，尝试从数据库加载 EXIF 数据
+        exif_data_map = {}
+        if media_type == 'image' and post_url:
+            exif_data_map = self._get_exif_data_for_post(post_url)
 
         # 遍历原始 URL，匹配本地文件
         for idx, url in enumerate(media_urls, 1):
@@ -367,13 +373,83 @@ class ForumArchiver:
             if not filename:
                 filename = f"{prefix}{idx}.unknown"
 
-            media_list.append({
+            media_item = {
                 'filename': filename,
                 'url': url,
                 'size': format_file_size(file_size) if file_size else None
-            })
+            }
+
+            # 添加 EXIF 数据（如果有）
+            if filename in exif_data_map:
+                media_item['exif'] = exif_data_map[filename]
+
+            media_list.append(media_item)
 
         return media_list
+
+    def _get_exif_data_for_post(self, post_url: str) -> Dict[str, Dict]:
+        """从数据库获取帖子的 EXIF 数据
+
+        Args:
+            post_url: 帖子 URL
+
+        Returns:
+            dict: {filename: exif_data}
+        """
+        try:
+            from ..database.connection import get_default_connection
+            from ..database.models import Post, Media
+
+            db = get_default_connection()
+            if not db.is_initialized():
+                return {}
+
+            Post._db = db
+            Media._db = db
+
+            # 查找帖子
+            post = Post.get_by_url(post_url)
+            if not post:
+                return {}
+
+            # 查找帖子的所有图片
+            images = Media.get_by_post(post.id, media_type='image')
+
+            exif_map = {}
+            for media in images:
+                # 从文件路径提取文件名
+                file_name = Path(media.file_path).name
+                if file_name.endswith('.done'):
+                    file_name = file_name[:-5]  # 移除 .done 后缀
+
+                # 构建 EXIF 字典（只包含有值的字段）
+                exif = {}
+
+                if media.exif_make:
+                    exif['make'] = media.exif_make
+                if media.exif_model:
+                    exif['model'] = media.exif_model
+                if media.exif_datetime:
+                    exif['datetime'] = media.exif_datetime
+                if media.exif_iso:
+                    exif['iso'] = media.exif_iso
+                if media.exif_aperture:
+                    exif['aperture'] = media.exif_aperture
+                if media.exif_shutter_speed:
+                    exif['shutter_speed'] = media.exif_shutter_speed
+                if media.exif_focal_length:
+                    exif['focal_length'] = media.exif_focal_length
+                if media.exif_location:
+                    exif['location'] = media.exif_location
+
+                if exif:  # 只添加有 EXIF 数据的图片
+                    exif_map[file_name] = exif
+
+            return exif_map
+
+        except Exception as e:
+            self.logger.debug(f"获取 EXIF 数据失败: {e}")
+            return {}
 
     def _save_content_html(self, post_data: Dict, post_dir: Path):
         """使用模板生成并保存 content.html
@@ -384,23 +460,26 @@ class ForumArchiver:
         """
         try:
             # 准备模板数据
+            post_url = post_data.get('url', '')
             template_data = {
                 'title': post_data.get('title', '无标题'),
                 'author': post_data.get('author', '未知作者'),
                 'publish_time': post_data.get('time', 'N/A'),
                 'archive_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                'url': post_data.get('url', ''),
+                'url': post_url,
                 'content': clean_html_content(post_data.get('content', '')),
                 'content_length': len(post_data.get('content', '')),
                 'images': self._prepare_media_list(
                     post_data.get('images', []),
                     'image',
-                    post_dir
+                    post_dir,
+                    post_url
                 ),
                 'videos': self._prepare_media_list(
                     post_data.get('videos', []),
                     'video',
-                    post_dir
+                    post_dir,
+                    post_url
                 )
             }
 

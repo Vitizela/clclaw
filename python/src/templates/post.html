@@ -132,6 +132,66 @@
             float: right;
         }
 
+        /* ============ EXIF 照片水印 ============ */
+
+        /* 水印容器（覆盖在图片上） */
+        .exif-watermark {
+            position: absolute;
+            bottom: 55px; /* 在图片信息条之上 */
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.4), transparent);
+            padding: 8px 10px 12px 10px;
+            color: white;
+            font-size: 0.7em;
+            line-height: 1.4;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+
+        /* 鼠标悬停时显示水印 */
+        .image-item:hover .exif-watermark {
+            opacity: 1;
+        }
+
+        /* 水印图标 */
+        .exif-watermark .icon {
+            opacity: 0.9;
+            margin-right: 3px;
+        }
+
+        /* 水印行 */
+        .exif-watermark .line {
+            margin-bottom: 2px;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* 水印分隔符 */
+        .exif-watermark .sep {
+            margin: 0 4px;
+            opacity: 0.6;
+        }
+
+        /* 灯箱中的 EXIF 信息增强 */
+        .lightbox-info .exif-details {
+            display: block;
+            margin-top: 5px;
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        /* 移动端优化 */
+        @media (max-width: 600px) {
+            .exif-watermark {
+                font-size: 0.65em;
+                padding: 6px 8px 10px 8px;
+            }
+        }
+
         /* 下载链接 */
         .download-link {
             display: block;
@@ -405,6 +465,57 @@
                 loading="lazy"
                 onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2VlZSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ibW9ub3NwYWNlIiBmb250LXNpemU9IjE0IiBmaWxsPSIjOTk5Ij7liqDovb3lpLHotKU8L3RleHQ+PC9zdmc+'"
             >
+
+            <!-- EXIF 照片水印 -->
+            {% if img.exif %}
+            <div class="exif-watermark">
+                {% if img.exif.make or img.exif.model %}
+                <div class="line">
+                    <span class="icon">📷</span>
+                    {% if img.exif.make and img.exif.model %}
+                        {{ img.exif.make }} {{ img.exif.model }}
+                    {% elif img.exif.model %}
+                        {{ img.exif.model }}
+                    {% else %}
+                        {{ img.exif.make }}
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                {% if img.exif.aperture or img.exif.shutter_speed or img.exif.iso or img.exif.focal_length %}
+                <div class="line">
+                    {% if img.exif.aperture %}
+                        f/{{ img.exif.aperture }}
+                    {% endif %}
+                    {% if img.exif.shutter_speed %}
+                        {% if img.exif.aperture %}<span class="sep">·</span>{% endif %}
+                        {{ img.exif.shutter_speed }}s
+                    {% endif %}
+                    {% if img.exif.iso %}
+                        {% if img.exif.aperture or img.exif.shutter_speed %}<span class="sep">·</span>{% endif %}
+                        ISO{{ img.exif.iso }}
+                    {% endif %}
+                    {% if img.exif.focal_length %}
+                        {% if img.exif.aperture or img.exif.shutter_speed or img.exif.iso %}<span class="sep">·</span>{% endif %}
+                        {{ img.exif.focal_length }}mm
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                {% if img.exif.datetime %}
+                <div class="line">
+                    <span class="icon">🕐</span>{{ img.exif.datetime }}
+                </div>
+                {% endif %}
+
+                {% if img.exif.location %}
+                <div class="line">
+                    <span class="icon">📍</span>{{ img.exif.location }}
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+
             <div class="image-info">
                 <span class="index">[{{ loop.index }}]</span>
                 {% if img.size %}
@@ -498,7 +609,13 @@ const images = [
     {
         src: 'photo/{{ img.filename }}',
         alt: '图片 {{ loop.index }}',
-        caption: '[{{ loop.index }}] {{ img.filename }}{% if img.size %} ({{ img.size }}){% endif %}'
+        caption: '[{{ loop.index }}] {{ img.filename }}{% if img.size %} ({{ img.size }}){% endif %}',
+        exif: {% if img.exif %}{
+            camera: '{% if img.exif.make and img.exif.model %}{{ img.exif.make }} {{ img.exif.model }}{% elif img.exif.model %}{{ img.exif.model }}{% elif img.exif.make %}{{ img.exif.make }}{% endif %}',
+            params: '{% if img.exif.aperture %}f/{{ img.exif.aperture }}{% endif %}{% if img.exif.shutter_speed %} · {{ img.exif.shutter_speed }}s{% endif %}{% if img.exif.iso %} · ISO{{ img.exif.iso }}{% endif %}{% if img.exif.focal_length %} · {{ img.exif.focal_length }}mm{% endif %}',
+            datetime: '{% if img.exif.datetime %}{{ img.exif.datetime }}{% endif %}',
+            location: '{% if img.exif.location %}{{ img.exif.location }}{% endif %}'
+        }{% else %}null{% endif %}
     }{% if not loop.last %},{% endif %}
     {% endfor %}
 ];
@@ -562,7 +679,36 @@ function updateLightboxImage() {
 
     img.src = currentImage.src;
     img.alt = currentImage.alt;
-    caption.textContent = currentImage.caption;
+
+    // 构建caption，包含EXIF信息
+    let captionText = currentImage.caption;
+
+    if (currentImage.exif && (currentImage.exif.camera || currentImage.exif.params || currentImage.exif.datetime || currentImage.exif.location)) {
+        captionText += '<br><span class="exif-details">';
+
+        if (currentImage.exif.camera) {
+            captionText += '📷 ' + currentImage.exif.camera;
+        }
+
+        if (currentImage.exif.params) {
+            if (currentImage.exif.camera) captionText += ' · ';
+            captionText += currentImage.exif.params;
+        }
+
+        if (currentImage.exif.datetime) {
+            captionText += '<br>🕐 ' + currentImage.exif.datetime;
+        }
+
+        if (currentImage.exif.location) {
+            if (currentImage.exif.datetime) captionText += ' · ';
+            else captionText += '<br>';
+            captionText += '📍 ' + currentImage.exif.location;
+        }
+
+        captionText += '</span>';
+    }
+
+    caption.innerHTML = captionText;
 }
 
 /**

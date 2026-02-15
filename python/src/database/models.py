@@ -636,6 +636,18 @@ class Media:
     download_date: Optional[str] = None
     created_at: Optional[str] = None
 
+    # EXIF 元数据字段（Phase 4）
+    exif_make: Optional[str] = None
+    exif_model: Optional[str] = None
+    exif_datetime: Optional[str] = None
+    exif_iso: Optional[int] = None
+    exif_aperture: Optional[float] = None
+    exif_shutter_speed: Optional[str] = None
+    exif_focal_length: Optional[float] = None
+    exif_gps_lat: Optional[float] = None
+    exif_gps_lng: Optional[float] = None
+    exif_location: Optional[str] = None
+
     _db: Optional[DatabaseConnection] = field(default=None, init=False, repr=False)
 
     @classmethod
@@ -665,7 +677,18 @@ class Media:
             duration=row['duration'],
             is_downloaded=bool(row['is_downloaded']),
             download_date=row['download_date'],
-            created_at=row['created_at']
+            created_at=row['created_at'],
+            # EXIF 字段
+            exif_make=row.get('exif_make'),
+            exif_model=row.get('exif_model'),
+            exif_datetime=row.get('exif_datetime'),
+            exif_iso=row.get('exif_iso'),
+            exif_aperture=row.get('exif_aperture'),
+            exif_shutter_speed=row.get('exif_shutter_speed'),
+            exif_focal_length=row.get('exif_focal_length'),
+            exif_gps_lat=row.get('exif_gps_lat'),
+            exif_gps_lng=row.get('exif_gps_lng'),
+            exif_location=row.get('exif_location')
         )
 
     @classmethod
