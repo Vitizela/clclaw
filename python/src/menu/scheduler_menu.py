@@ -29,13 +29,24 @@ class SchedulerMenu:
         self.config = config
 
         # 延迟导入以避免循环依赖
-        from scheduler.task_scheduler import TaskScheduler
-        from scheduler.incremental_archiver import IncrementalArchiver
-        from database.connection import get_default_connection
-        from notification.manager import NotificationManager
-        from notification.console_notifier import ConsoleNotifier
-        from notification.file_notifier import FileNotifier
-        from notification.mqtt_notifier import MQTTNotifier
+        # 尝试相对导入（从 main.py 调用时）
+        try:
+            from ..scheduler.task_scheduler import TaskScheduler
+            from ..scheduler.incremental_archiver import IncrementalArchiver
+            from ..database.connection import get_default_connection
+            from ..notification.manager import NotificationManager
+            from ..notification.console_notifier import ConsoleNotifier
+            from ..notification.file_notifier import FileNotifier
+            from ..notification.mqtt_notifier import MQTTNotifier
+        except ImportError:
+            # 回退到绝对导入（从测试调用时）
+            from scheduler.task_scheduler import TaskScheduler
+            from scheduler.incremental_archiver import IncrementalArchiver
+            from database.connection import get_default_connection
+            from notification.manager import NotificationManager
+            from notification.console_notifier import ConsoleNotifier
+            from notification.file_notifier import FileNotifier
+            from notification.mqtt_notifier import MQTTNotifier
 
         # 初始化组件
         self.db = get_default_connection()
@@ -242,7 +253,10 @@ class SchedulerMenu:
         print("=" * 60)
 
         # 获取作者列表
-        from database.models import Author
+        try:
+            from ..database.models import Author
+        except ImportError:
+            from database.models import Author
         authors = Author.get_all(db=self.db)
 
         if not authors:
@@ -542,6 +556,9 @@ class SchedulerMenu:
 
     def _save_notification_config(self):
         """保存通知配置到 config.yaml"""
-        from config.manager import ConfigManager
+        try:
+            from ..config.manager import ConfigManager
+        except ImportError:
+            from config.manager import ConfigManager
         config_manager = ConfigManager()
         config_manager.save(self.config)
