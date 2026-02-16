@@ -3,10 +3,12 @@
 from .manager import NotificationManager, NotifierBase
 from .console_notifier import ConsoleNotifier
 from .file_notifier import FileNotifier
+from .mqtt_notifier import MQTTNotifier
 
 __all__ = [
     'NotificationManager',
     'NotifierBase',
     'ConsoleNotifier',
     'FileNotifier',
+    'MQTTNotifier',
 ]
