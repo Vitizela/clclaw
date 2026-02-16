@@ -257,7 +257,7 @@ class SchedulerMenu:
             from ..database.models import Author
         except ImportError:
             from database.models import Author
-        authors = Author.get_all(db=self.db)
+        authors = Author.get_all()
 
         if not authors:
             print("❌ 数据库中无作者，请先添加作者")
