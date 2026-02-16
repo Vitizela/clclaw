@@ -14,6 +14,8 @@ from ..bridge.nodejs_bridge import NodeJSBridge
 from ..utils.display import show_author_table, show_warning
 from ..utils.keybindings import select_with_keybindings, checkbox_with_keybindings, text_with_keybindings
 from ..utils.logger import setup_logger
+from ..utils.system_info_collector import SystemInfoCollector, StatusPanelData
+from ..utils.status_panel_formatter import StatusPanelFormatter
 
 # Phase 3: 数据库模块
 from ..database import (
@@ -61,6 +63,9 @@ class MainMenu:
         except Exception as e:
             self.logger.error(f"数据库连接初始化失败: {e}")
 
+        # Phase 5.5: 初始化系统信息收集器
+        SystemInfoCollector.initialize()
+
     def run(self) -> None:
         """运行主菜单"""
         # Phase 3: 首次运行检测和数据库初始化
@@ -94,15 +99,29 @@ class MainMenu:
                 break
 
     def _show_status(self) -> None:
-        """显示系统状态"""
+        """显示系统状态（增强版）"""
         self.console.clear()
-        self.console.print(Panel(
-            f"[cyan]关注作者:[/cyan] {len(self.config['followed_authors'])} 位\n"
-            f"[cyan]论坛版块:[/cyan] {self.config['forum']['section_url']}\n"
-            f"[cyan]归档路径:[/cyan] {self.config['storage']['archive_path']}",
-            title="📊 论坛作者订阅归档系统",
-            border_style="cyan"
-        ))
+
+        # 收集信息
+        program_info = SystemInfoCollector.get_program_info(scheduler=None)
+        system_info = SystemInfoCollector.get_system_info()
+        resource_info = SystemInfoCollector.get_resource_info(
+            archive_path=self.config['storage']['archive_path']
+        )
+
+        # 构建状态数据
+        panel_data = StatusPanelData(
+            program_info=program_info,
+            system_info=system_info,
+            resource_info=resource_info,
+            authors_count=len(self.config['followed_authors']),
+            forum_url=self.config['forum']['section_url'],
+            archive_path=self.config['storage']['archive_path']
+        )
+
+        # 格式化并显示
+        panel = StatusPanelFormatter.format_panel(panel_data)
+        self.console.print(panel)
 
     def _show_main_menu(self) -> str:
         """显示主菜单"""
