@@ -87,6 +87,8 @@ class MainMenu:
                 self._show_statistics()
             elif "数据分析" in choice:
                 self._show_analysis()
+            elif "定时任务" in choice:
+                self._show_scheduler()
             elif "退出" in choice:
                 self.console.print("[yellow]再见！[/yellow]")
                 break
@@ -114,6 +116,7 @@ class MainMenu:
             "⚙️  系统设置",
             "📊 查看统计（Phase 3 后可用）",
             "📈 数据分析（Phase 4 后可用）",
+            "⏰ 定时任务（Phase 5）",
             "🚪 退出"
         ]
 
@@ -1116,6 +1119,17 @@ class MainMenu:
         """数据分析（Phase 4）"""
         from ..menu.analysis_menu import show_analysis_menu
         show_analysis_menu()
+
+    def _show_scheduler(self) -> None:
+        """定时任务管理（Phase 5）"""
+        from ..menu.scheduler_menu import SchedulerMenu
+        try:
+            scheduler_menu = SchedulerMenu(self.config)
+            scheduler_menu.show()
+        except Exception as e:
+            self.console.print(f"[red]启动定时任务菜单失败: {e}[/red]")
+            self.logger.error(f"启动定时任务菜单失败: {e}")
+            questionary.press_any_key_to_continue("\n按任意键返回...").ask()
 
     def _sync_config_from_nodejs(self) -> None:
         """从 Node.js 的 config.json 同步配置到 config.yaml
