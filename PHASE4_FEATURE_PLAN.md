@@ -27,17 +27,18 @@
 
 Phase 4 的核心目标是将 Phase 3 采集的数据转化为有价值的洞察和可视化报告，包括：
 
-### 核心功能模块（5 个）
+### 核心功能模块（6 个）
 
 | 模块 | 功能 | 优先级 | 工作量 |
 |------|------|--------|--------|
-| **A. 图片元数据分析** | EXIF 提取、水印显示、GPS 分析 | P0（必做） | 3-4 天 |
+| **A. 图片元数据分析** | EXIF 提取、水印显示、GPS 分析 | P0（必做） | 3-4 天 ✅ |
 | **B. 文本分析** | 词云生成、关键词提取、内容分析 | P1（必做） | 2-3 天 |
 | **C. 时间分析** | 趋势图、热力图、活跃度分析 | P1（必做） | 2-3 天 |
 | **D. 可视化增强** | 图表美化、交互式展示 | P1（必做） | 2 天 |
 | **E. 报告生成** | HTML 报告、PDF 导出（可选） | P2（推荐） | 2 天 |
+| **F. 相机使用分析** | 相机作者关联、使用时间线、统计报告 | P1（必做） | 1-2 天 |
 
-**总工作量**: 11-15 天（2-3 周）
+**总工作量**: 13-18 天（3 周）
 
 ---
 
@@ -445,6 +446,301 @@ def generate_html_report(data):
 - 依赖外部工具
 
 **建议**：Phase 5 再考虑
+
+---
+
+### F. 相机使用分析 ⭐ 新增（用户需求，2026-02-16）
+
+**功能描述**：统计相机型号被哪些作者使用，在哪些日期的帖子中使用，提供多维度相机使用分析
+
+#### F.1 数据基础
+
+**数据来源**：
+- Phase 4 Week 1 已实现的 EXIF 提取功能 ✅
+- `media` 表包含 10 个 EXIF 字段（make, model, datetime 等）
+- 已有索引优化（idx_media_exif_make/model）
+
+**三表关联**：
+```sql
+media (exif_make, exif_model, post_id)
+  → posts (author_id, publish_date)
+    → authors (name)
+```
+
+#### F.2 核心查询功能（必做）
+
+##### F.2.1 相机 → 作者使用查询
+
+**功能**：查询指定相机型号被哪些作者使用
+
+**输入**：
+- 相机制造商（如 vivo）
+- 相机型号（如 X Fold3 Pro）
+
+**输出**：
+```
+相机型号: vivo X Fold3 Pro
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+┏━━━━━━━━┳━━━━━━┳━━━━━━┳━━━━━━━━━┳━━━━━━━━━┓
+┃ 作者   ┃照片数┃帖子数┃首次使用 ┃最后使用 ┃
+┡━━━━━━━━╇━━━━━━╇━━━━━━╇━━━━━━━━━╇━━━━━━━━━┩
+│同花顺心 │ 300 │  20  │2024-01  │2024-12  │
+│cyruscc │ 100 │   8  │2024-03  │2024-11  │
+└────────┴─────┴──────┴─────────┴─────────┘
+
+EXIF 统计: ISO 400 | 光圈 f/2.2 | 焦距 50mm
+```
+
+**实现方式**：
+- 创建视图 `v_camera_author_usage`
+- 查询函数 `get_camera_usage_by_authors()`
+
+##### F.2.2 作者 → 相机使用查询
+
+**功能**：查询指定作者使用了哪些相机型号
+
+**输入**：作者名称（如 同花顺心）
+
+**输出**：
+```
+作者: 同花顺心
+使用了 3 种相机，共 450 张照片
+
+┏━━━━━━━━━━━━━━━━━┳━━━━━━┳━━━━━━┳━━━━━━━━━┓
+┃ 相机型号        ┃照片数┃ 占比 ┃使用期间 ┃
+┡━━━━━━━━━━━━━━━━━╇━━━━━━╇━━━━━━╇━━━━━━━━━┩
+│vivo X Fold3 Pro │ 300 │66.7%│2024-01至今│
+│Canon EOS 5D     │ 100 │22.2%│2024-03-06│
+└─────────────────┴─────┴──────┴─────────┘
+```
+
+**实现方式**：
+- 创建视图 `v_author_camera_summary`
+- 查询函数 `get_author_camera_usage()`
+
+##### F.2.3 相机使用时间线
+
+**功能**：查询相机型号在不同日期的使用情况
+
+**输入**：
+- 相机制造商 + 型号
+- 可选：年份/月份过滤
+
+**输出**：
+```
+相机: vivo X Fold3 Pro | 时间: 2024年
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+2024-12 ████████████████ 60张 (同花顺心)
+2024-11 ████████████     45张 (同花顺心, cyruscc)
+2024-10 ████████         30张 (cyruscc)
+...
+
+总计: 450张照片 | 30篇帖子 | 3位作者
+```
+
+**实现方式**：
+- 创建视图 `v_camera_daily_usage`
+- 查询函数 `get_camera_usage_timeline()`
+
+##### F.2.4 相机型号排行
+
+**功能**：显示所有相机型号的使用统计排行
+
+**输出**：
+```
+┏━━━━━━━━━━━━━━━━━━━┳━━━━━━┳━━━━━━┳━━━━━━━┳━━━━━━━━━━┓
+┃ 相机型号          ┃照片数┃帖子数┃ 作者数 ┃首次使用  ┃
+┡━━━━━━━━━━━━━━━━━━━╇━━━━━━╇━━━━━━╇━━━━━━━╇━━━━━━━━━━┩
+│vivo X Fold3 Pro   │ 450 │  30  │   3   │2024-01   │
+│Canon EOS 5D       │ 320 │  25  │   2   │2024-02   │
+│iPhone 15 Pro      │ 280 │  18  │   4   │2024-03   │
+└───────────────────┴─────┴──────┴───────┴──────────┘
+```
+
+**实现方式**：
+- 扩展现有视图 `v_camera_stats`
+- 查询函数 `get_camera_ranking()`
+
+#### F.3 数据库设计（必做）
+
+##### 新增视图（3 个）
+
+**视图 1: v_camera_author_usage**
+```sql
+CREATE VIEW v_camera_author_usage AS
+SELECT
+    m.exif_make, m.exif_model,
+    a.id as author_id, a.name as author_name,
+    COUNT(DISTINCT m.id) as photo_count,
+    COUNT(DISTINCT p.id) as post_count,
+    MIN(p.publish_date) as first_use_date,
+    MAX(p.publish_date) as last_use_date,
+    ROUND(AVG(m.exif_iso), 0) as avg_iso,
+    ROUND(AVG(m.exif_aperture), 1) as avg_aperture
+FROM media m
+JOIN posts p ON m.post_id = p.id
+JOIN authors a ON p.author_id = a.id
+WHERE m.type = 'image'
+  AND m.exif_make IS NOT NULL
+  AND m.exif_model IS NOT NULL
+GROUP BY m.exif_make, m.exif_model, a.id;
+```
+
+**视图 2: v_camera_daily_usage**
+```sql
+CREATE VIEW v_camera_daily_usage AS
+SELECT
+    m.exif_make, m.exif_model,
+    DATE(p.publish_date) as date,
+    p.publish_year, p.publish_month,
+    COUNT(DISTINCT m.id) as photo_count,
+    COUNT(DISTINCT p.id) as post_count,
+    GROUP_CONCAT(DISTINCT a.name) as authors
+FROM media m
+JOIN posts p ON m.post_id = p.id
+JOIN authors a ON p.author_id = a.id
+WHERE m.type = 'image'
+  AND m.exif_make IS NOT NULL
+  AND m.exif_model IS NOT NULL
+GROUP BY m.exif_make, m.exif_model, DATE(p.publish_date);
+```
+
+**视图 3: v_author_camera_summary**
+```sql
+CREATE VIEW v_author_camera_summary AS
+SELECT
+    a.id as author_id, a.name as author_name,
+    COUNT(DISTINCT m.exif_make || '-' || m.exif_model) as camera_count,
+    GROUP_CONCAT(DISTINCT m.exif_make || ' ' || m.exif_model) as camera_list,
+    COUNT(DISTINCT m.id) as total_photos
+FROM authors a
+JOIN posts p ON a.id = p.author_id
+JOIN media m ON p.id = m.post_id
+WHERE m.type = 'image' AND m.exif_make IS NOT NULL
+GROUP BY a.id;
+```
+
+##### 查询函数（3 个）
+
+**函数 1**: `get_camera_usage_by_authors(camera_make, camera_model, ...)`
+- 参数：相机制造商、型号、作者名（可选）、限制数量
+- 返回：作者使用统计列表
+
+**函数 2**: `get_camera_usage_timeline(camera_make, camera_model, ...)`
+- 参数：相机制造商、型号、年份（可选）、月份（可选）
+- 返回：时间线数据列表
+
+**函数 3**: `get_author_camera_usage(author_name)`
+- 参数：作者名称
+- 返回：包含相机列表和统计的字典
+
+#### F.4 菜单界面（必做）
+
+**菜单位置**：主菜单 → 查看统计 → 相机使用分析
+
+**子菜单结构**：
+```
+📷 相机使用分析
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  1. 查看所有相机型号排行
+  2. 查询相机被哪些作者使用
+  3. 查询作者使用了哪些相机
+  4. 查看相机使用时间线
+  0. 返回上级菜单
+```
+
+**交互流程**：
+1. 用户选择功能类型
+2. 输入查询参数（相机型号或作者名）
+3. 显示 Rich Table 格式化结果
+4. 可选：生成图表（时间线图）
+
+#### F.5 性能考虑
+
+**查询性能**（预估，基于 1000 张图片）：
+- 相机排行：<50ms（已有索引）
+- 相机→作者：<100ms（3表 JOIN）
+- 作者→相机：<80ms（外键优化）
+- 时间线：<100ms（日期聚合）
+
+**优化措施**：
+- 已有索引：`idx_media_exif_make`, `idx_media_exif_model`
+- 视图缓存：可选物化视图（如查询慢）
+- 结果缓存：使用 `@lru_cache` 装饰器
+
+#### F.6 技术方案选择
+
+**推荐方案**：视图 + 查询函数混合
+
+**优点**：
+- 视图：性能好、代码简洁
+- 函数：灵活、支持动态过滤
+- 混合：兼顾性能和灵活性
+
+**不推荐**：
+- 纯动态查询：每次都 JOIN，性能较差
+- 纯视图：缺乏灵活性，需要多个视图
+
+#### F.7 实施优先级
+
+**高优先级（必做）**：
+1. 创建 3 个数据库视图
+2. 实现 3 个查询函数
+3. 创建相机使用菜单
+4. Rich Table 显示
+
+**中优先级（推荐）**：
+5. 时间线图表（matplotlib）
+6. 相机作者饼图
+
+**低优先级（可选）**：
+7. 相机使用报告（HTML）
+8. 导出功能（CSV/Excel）
+
+#### F.8 测试要求
+
+**单元测试**：
+- `test_get_camera_usage_by_authors()` - 查询正确性
+- `test_get_camera_usage_timeline()` - 时间线数据
+- `test_get_author_camera_usage()` - 作者相机统计
+
+**集成测试**：
+- `test_camera_usage_menu()` - 菜单交互流程
+
+**性能测试**：
+- 查询响应时间 <200ms（1000+ 照片数据集）
+
+#### F.9 工作量估算
+
+| 任务 | 工作量 | 描述 |
+|------|--------|------|
+| 创建 3 个视图 | 0.5 天 | SQL 编写 + 测试 |
+| 实现 3 个查询函数 | 1 天 | Python 函数 + 单元测试 |
+| 创建菜单界面 | 0.5 天 | Rich Table 显示 |
+| 集成测试 | 0.25 天 | 菜单流程测试 |
+| 文档更新 | 0.25 天 | 用户指南 + API 文档 |
+
+**总计**: 2.5 天（约 2 个工作日）
+
+#### F.10 验收标准
+
+**功能验收**：
+- ✅ 能查询相机被哪些作者使用
+- ✅ 能查询作者使用了哪些相机
+- ✅ 能查看相机使用时间线
+- ✅ 显示准确的统计数据
+- ✅ Rich Table 格式美观
+
+**性能验收**：
+- ✅ 查询响应时间 <200ms
+- ✅ 支持 1000+ 照片数据集
+
+**用户体验验收**：
+- ✅ 菜单交互流畅
+- ✅ 数据易于理解
+- ✅ 错误提示友好
 
 ---
 

@@ -28,6 +28,9 @@ from ..database import (
     generate_integrity_report
 )
 
+# Phase 4: 相机使用分析
+from .camera_usage_menu import show_camera_usage_menu
+
 
 class MainMenu:
     """主菜单系统"""
@@ -951,6 +954,7 @@ class MainMenu:
             # 统计菜单
             choices = [
                 "📋 查看作者详细统计",
+                "📷 相机使用分析",
                 "🔄 重新导入数据",
                 "🔍 数据完整性检查",
                 "⬅️  返回主菜单"
@@ -966,6 +970,8 @@ class MainMenu:
                 break
             elif "查看作者详细统计" in choice:
                 self._show_author_detail_stats()
+            elif "相机使用分析" in choice:
+                self._show_camera_usage_analysis()
             elif "重新导入数据" in choice:
                 self._reimport_data()
             elif "数据完整性检查" in choice:
@@ -1040,6 +1046,17 @@ class MainMenu:
         except Exception as e:
             self.console.print(f"[red]获取详细统计失败: {e}[/red]")
             self.logger.error(f"获取作者详细统计失败: {e}")
+            questionary.press_any_key_to_continue("\n按任意键返回...").ask()
+
+    def _show_camera_usage_analysis(self) -> None:
+        """显示相机使用分析菜单（Phase 4 Week 3）"""
+        try:
+            show_camera_usage_menu()
+        except KeyboardInterrupt:
+            self.console.print("\n[yellow]已取消操作[/yellow]")
+        except Exception as e:
+            self.console.print(f"[red]相机使用分析失败: {e}[/red]")
+            self.logger.error(f"相机使用分析失败: {e}")
             questionary.press_any_key_to_continue("\n按任意键返回...").ask()
 
     def _reimport_data(self) -> None:

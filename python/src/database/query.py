@@ -657,3 +657,258 @@ def get_camera_ranking(
     except Exception as e:
         print(f"查询相机排行失败: {e}")
         return []
+
+
+# =============================================================================
+# 相机使用分析（Phase 4 Week 3）
+# =============================================================================
+
+def get_camera_usage_by_authors(
+    camera_make: Optional[str] = None,
+    camera_model: Optional[str] = None,
+    author_name: Optional[str] = None,
+    limit: int = 50,
+    db: Optional['DatabaseConnection'] = None
+) -> List[dict]:
+    """
+    查询相机被哪些作者使用
+
+    Args:
+        camera_make: 相机制造商（如 'vivo'），None 表示全部
+        camera_model: 相机型号（如 'X Fold3 Pro'），None 表示全部
+        author_name: 作者名称（用于反向查询），None 表示全部
+        limit: 返回结果数量限制（默认 50）
+        db: 数据库连接（可选）
+
+    Returns:
+        [
+            {
+                'camera_full': 'vivo X Fold3 Pro',
+                'make': 'vivo',
+                'model': 'X Fold3 Pro',
+                'author_name': '同花顺心',
+                'photo_count': 150,
+                'post_count': 10,
+                'first_use_date': '2024-01-15',
+                'last_use_date': '2024-12-20',
+                'avg_iso': 400.0,
+                'avg_aperture': 2.2,
+                'avg_focal_length': 50.0
+            },
+            ...
+        ]
+    """
+    if db is None:
+        db = _get_db()
+    conn = db.get_connection()
+
+    try:
+        # 构建动态 WHERE 条件
+        conditions = []
+        params = []
+
+        if camera_make:
+            conditions.append("make = ?")
+            params.append(camera_make)
+
+        if camera_model:
+            conditions.append("model = ?")
+            params.append(camera_model)
+
+        if author_name:
+            conditions.append("author_name = ?")
+            params.append(author_name)
+
+        where_clause = " AND ".join(conditions) if conditions else "1=1"
+
+        # 执行查询
+        cursor = conn.execute(f"""
+            SELECT
+                camera_full,
+                make,
+                model,
+                author_name,
+                photo_count,
+                post_count,
+                first_use_date,
+                last_use_date,
+                avg_iso,
+                avg_aperture,
+                avg_focal_length
+            FROM v_camera_author_usage
+            WHERE {where_clause}
+            ORDER BY camera_full, photo_count DESC
+            LIMIT ?
+        """, params + [limit])
+
+        return [dict(row) for row in cursor.fetchall()]
+
+    except Exception as e:
+        print(f"查询相机作者使用失败: {e}")
+        return []
+
+
+def get_camera_usage_timeline(
+    camera_make: str,
+    camera_model: str,
+    author_name: Optional[str] = None,
+    year: Optional[int] = None,
+    month: Optional[int] = None,
+    db: Optional['DatabaseConnection'] = None
+) -> List[dict]:
+    """
+    查询相机使用的时间线（按日期聚合）
+
+    Args:
+        camera_make: 相机制造商（必填）
+        camera_model: 相机型号（必填）
+        author_name: 作者名称（可选，用于过滤）
+        year: 年份过滤（可选）
+        month: 月份过滤（可选，1-12）
+        db: 数据库连接（可选）
+
+    Returns:
+        [
+            {
+                'date': '2024-12-20',
+                'year': 2024,
+                'month': 12,
+                'photo_count': 15,
+                'post_count': 1,
+                'authors': '同花顺心'
+            },
+            ...
+        ]
+    """
+    if db is None:
+        db = _get_db()
+    conn = db.get_connection()
+
+    try:
+        # 构建动态 WHERE 条件
+        conditions = ["make = ?", "model = ?"]
+        params = [camera_make, camera_model]
+
+        if author_name:
+            conditions.append("authors LIKE ?")
+            params.append(f"%{author_name}%")
+
+        if year:
+            conditions.append("year = ?")
+            params.append(year)
+
+        if month:
+            conditions.append("month = ?")
+            params.append(month)
+
+        where_clause = " AND ".join(conditions)
+
+        # 执行查询
+        cursor = conn.execute(f"""
+            SELECT
+                date,
+                year,
+                month,
+                photo_count,
+                post_count,
+                authors
+            FROM v_camera_daily_usage
+            WHERE {where_clause}
+            ORDER BY date DESC
+        """, params)
+
+        return [dict(row) for row in cursor.fetchall()]
+
+    except Exception as e:
+        print(f"查询相机使用时间线失败: {e}")
+        return []
+
+
+def get_author_camera_usage(
+    author_name: str,
+    db: Optional['DatabaseConnection'] = None
+) -> dict:
+    """
+    查询作者使用的所有相机型号
+
+    Args:
+        author_name: 作者名称
+        db: 数据库连接（可选）
+
+    Returns:
+        {
+            'author_name': '同花顺心',
+            'total_cameras': 3,
+            'total_photos': 450,
+            'cameras': [
+                {
+                    'camera_full': 'vivo X Fold3 Pro',
+                    'make': 'vivo',
+                    'model': 'X Fold3 Pro',
+                    'photo_count': 300,
+                    'post_count': 20,
+                    'first_use': '2024-01-15',
+                    'last_use': '2024-12-20',
+                    'usage_percent': 66.7
+                },
+                ...
+            ]
+        }
+    """
+    if db is None:
+        db = _get_db()
+    conn = db.get_connection()
+
+    try:
+        # 查询作者的所有相机使用情况
+        cursor = conn.execute("""
+            SELECT
+                camera_full,
+                make,
+                model,
+                photo_count,
+                post_count,
+                first_use_date,
+                last_use_date
+            FROM v_camera_author_usage
+            WHERE author_name = ?
+            ORDER BY photo_count DESC
+        """, (author_name,))
+
+        cameras = []
+        total_photos = 0
+
+        for row in cursor.fetchall():
+            row_dict = dict(row)
+            cameras.append({
+                'camera_full': row_dict['camera_full'],
+                'make': row_dict['make'],
+                'model': row_dict['model'],
+                'photo_count': row_dict['photo_count'],
+                'post_count': row_dict['post_count'],
+                'first_use': row_dict['first_use_date'][:10] if row_dict['first_use_date'] else None,
+                'last_use': row_dict['last_use_date'][:10] if row_dict['last_use_date'] else None
+            })
+            total_photos += row_dict['photo_count']
+
+        # 计算使用百分比
+        for camera in cameras:
+            camera['usage_percent'] = round(
+                camera['photo_count'] / total_photos * 100, 1
+            ) if total_photos > 0 else 0.0
+
+        return {
+            'author_name': author_name,
+            'total_cameras': len(cameras),
+            'total_photos': total_photos,
+            'cameras': cameras
+        }
+
+    except Exception as e:
+        print(f"查询作者相机使用失败: {e}")
+        return {
+            'author_name': author_name,
+            'total_cameras': 0,
+            'total_photos': 0,
+            'cameras': []
+        }
