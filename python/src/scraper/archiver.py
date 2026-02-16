@@ -99,7 +99,8 @@ class ForumArchiver:
         author_name: str,
         author_url: str,
         max_pages: Optional[int] = None,
-        max_posts: Optional[int] = None
+        max_posts: Optional[int] = None,
+        target_urls: Optional[List[str]] = None
     ) -> Dict:
         """归档作者的所有帖子
 
@@ -108,6 +109,8 @@ class ForumArchiver:
             author_url: Author's post list URL
             max_pages: Maximum pages to scrape (None = all)
             max_posts: Maximum posts to archive (None = all)
+            target_urls: 目标帖子 URL 列表（增量模式）
+                        如果提供，则只归档这些 URL，忽略 max_pages/max_posts
 
         Returns:
             Statistics dict with keys: total, new, skipped, failed
@@ -126,24 +129,32 @@ class ForumArchiver:
             await self.extractor.start()
 
             # 阶段一：收集所有帖子 URL（带作者过滤）
-            self.logger.info("【阶段 1】收集帖子 URL...")
-            post_urls = await self.extractor.collect_post_urls(
-                author_url,
-                max_pages,
-                max_posts,
-                author_name=author_name
-            )
+            if target_urls is not None:
+                # 增量模式：使用指定的 URL 列表
+                post_urls = target_urls
+                forum_total = len(target_urls)
+                self.logger.info("【增量模式】使用指定的帖子 URL 列表")
+                self.logger.info(f"目标帖子数: {forum_total} 篇")
+            else:
+                # 全量模式：使用 extractor 收集
+                self.logger.info("【阶段 1】收集帖子 URL...")
+                post_urls = await self.extractor.collect_post_urls(
+                    author_url,
+                    max_pages,
+                    max_posts,
+                    author_name=author_name
+                )
 
-            # 🧪 测试模式：限制帖子数量（取消注释下面这行）
-            # post_urls = post_urls[:3]  # 只处理前 3 篇帖子
+                # 🧪 测试模式：限制帖子数量（取消注释下面这行）
+                # post_urls = post_urls[:3]  # 只处理前 3 篇帖子
 
-            total_posts = len(post_urls)
+                total_posts = len(post_urls)
 
-            # 论坛总数 = 实际收集到的主题帖数量
-            # 说明：只统计作者作为楼主的原创主题帖，不包含回复别人的帖子
-            forum_total = total_posts
-            self.logger.info(
-                f"作者 {author_name} 的主题帖总数: {forum_total} "
+                # 论坛总数 = 实际收集到的主题帖数量
+                # 说明：只统计作者作为楼主的原创主题帖，不包含回复别人的帖子
+                forum_total = total_posts
+                self.logger.info(
+                    f"作者 {author_name} 的主题帖总数: {forum_total} "
                 f"(只统计楼主原创帖，不含回复)"
             )
 
