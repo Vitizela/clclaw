@@ -33,3 +33,7 @@ matplotlib==3.8.2          # 可视化
 seaborn==0.13.1            # 高级可视化
 pandas==2.2.0              # 数据处理
 numpy==1.26.3              # 数值计算
+
+# ============ Phase 5: 调度器与通知 ============
+apscheduler==3.10.4        # 任务调度
+paho-mqtt==1.6.1           # MQTT 客户端
