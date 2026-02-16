@@ -155,13 +155,15 @@ followed_authors:
 - name: 剑齿虎
   url: https://t66y.com/@剑齿虎
   added_date: '2026-02-15'
-  last_update: null
-  total_posts: 0
+  last_update: '2026-02-15 21:26:03'
+  total_posts: 48
   total_images: 0
   total_videos: 0
   tags:
   - from_nodejs
   notes: 通过 Node.js 脚本添加
+  forum_total_posts: 100
+  forum_stats_updated: '2026-02-15'
 storage:
   archive_path: /home/ben/Download/t66y
   analysis_path: ./分析报告
@@ -202,28 +204,6 @@ legacy:
   nodejs_path: ../
 user_preferences:
   last_selected_authors:
-  - 特兰克斯斯
+  - 剑齿虎
   remember_selection: true
-notification:
-  console:
-    enabled: true
-    min_level: INFO
-  file:
-    enabled: true
-    log_dir: logs
-    log_file: scheduler.log
-  mqtt:
-    enabled: false
-    broker: localhost
-    port: 1883
-    username: ''
-    password: ''
-    topic: t66y/scheduler/events
-    qos: 1
-    client_id: t66y-archiver
-    publish_on:
-      task_start: false
-      task_complete: true
-      task_error: true
-      new_posts_found: true
-last_updated: '2026-02-15 00:59:01'
+last_updated: '2026-02-15 21:26:03'
