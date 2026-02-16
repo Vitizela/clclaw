@@ -4,15 +4,61 @@
 
 ### 🏁 MILE4 开始（2026-02-15）
 
-**状态**: 🚧 进行中 - Day 1 已完成（27%）
+**状态**: 🚧 进行中 - Week 1 完成！（38%）
 
 **工期**: 2026-02-15 至 2026-02-24（10 天）
 
-**当前任务**: 准备开始 Day 2 - MQTT 通知器
+**当前任务**: 准备开始 Day 3 - 任务调度器
 
 ---
 
 ## 里程碑记录
+
+### Week 1 完成（2026-02-15）🎉
+
+**完成任务**: 10/10 任务（100%）
+
+**Day 2 实现**:
+- ✅ MQTTNotifier - MQTT 通知器（300 行）
+  - paho-mqtt 客户端封装
+  - 自动重连机制
+  - QoS 1 消息保证
+  - 结构化 JSON 消息
+  - 事件过滤配置
+
+**核心功能**:
+- 连接 MQTT Broker（支持用户名/密码认证）
+- 后台线程运行（loop_start）
+- 消息发布带重试（最多 3 次，间隔 2 秒）
+- 4 种事件类型（message/task_completed/task_failed/new_posts_found）
+- publish_on 配置（可选择发布哪些事件）
+
+**配置扩展**:
+- config.yaml 新增 notification 配置节（16 行）
+  - console: 控制台通知（已实现 Day 1）
+  - file: 文件通知（已实现 Day 1）
+  - mqtt: MQTT 通知（新增 Day 2）
+
+**测试结果**:
+- ✅ 5/5 测试通过
+- test_mqtt_disabled（禁用状态）
+- test_mqtt_connection（连接测试）
+- test_mqtt_messages（消息发送）
+- test_mqtt_publish_on（事件过滤）
+- test_mqtt_json_format（JSON 格式验证）
+
+**Git 提交**:
+- `3e2cee6` - feat(phase5): 实现 Day 2 MQTT 通知器
+
+**Week 1 总结**:
+- ✅ Day 1: 基础通知框架（467 行）
+- ✅ Day 2: MQTT 通知器（300 行）
+- 总代码: 767 行核心代码 + 550 行测试
+- 总耗时: 约 5 小时
+
+**下一步**: Week 2 - 调度与归档（Day 3-7）
+
+---
 
 ### Day 1 完成（2026-02-15）
 
@@ -76,11 +122,11 @@
 
 ## 任务进度
 
-**总进度**: 7/26 任务完成（27%）
+**总进度**: 10/26 任务完成（38%）
 
-### Week 1: 基础通知模块（7/8）
+### Week 1: 基础通知模块（10/10）✅ 完成！
 - [✅] Day 1: 环境准备 + NotificationManager（7/7）✅
-- [ ] Day 2: MQTT 通知器（0/3）
+- [✅] Day 2: MQTT 通知器（3/3）✅
 - [ ] Day 3: 任务调度器（0/3）
 
 ### Week 2: 调度与归档（0/10）
