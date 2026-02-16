@@ -345,3 +345,42 @@ class TaskScheduler:
             任务数量
         """
         return len(self.scheduler.get_jobs())
+
+    def execute_task_now(self, task_id: str) -> Dict:
+        """
+        立即执行任务（手动测试用）
+
+        Args:
+            task_id: 任务 ID
+
+        Returns:
+            任务执行结果字典
+        """
+        # 读取任务配置
+        task_config = self._load_tasks_file().get(task_id)
+        if not task_config:
+            return {
+                'status': 'failed',
+                'error': '任务配置不存在'
+            }
+
+        function_name = task_config.get('function')
+        kwargs = task_config.get('kwargs', {})
+
+        # 检查函数是否注册
+        if function_name not in self.task_functions:
+            return {
+                'status': 'failed',
+                'error': f'任务函数未注册: {function_name}'
+            }
+
+        # 执行任务函数
+        try:
+            func = self.task_functions[function_name]
+            result = func(**kwargs)
+            return result
+        except Exception as e:
+            return {
+                'status': 'failed',
+                'error': str(e)
+            }
