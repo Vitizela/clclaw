@@ -119,15 +119,15 @@ followed_authors:
 - name: 幸福的阿狸
   url: https://t66y.com/@幸福的阿狸
   added_date: '2026-02-13'
-  last_update: '2026-02-14 23:27:30'
-  total_posts: 11
+  last_update: '2026-02-16 00:23:46'
+  total_posts: 13
   total_images: 0
   total_videos: 0
   tags:
   - from_nodejs
   notes: 通过 Node.js 脚本添加
   forum_total_posts: 8
-  forum_stats_updated: '2026-02-14'
+  forum_stats_updated: '2026-02-16'
 - name: 激情褪去
   url: https://t66y.com/@激情褪去
   added_date: '2026-02-14'
@@ -155,15 +155,27 @@ followed_authors:
 - name: 剑齿虎
   url: https://t66y.com/@剑齿虎
   added_date: '2026-02-15'
-  last_update: '2026-02-15 21:26:03'
-  total_posts: 48
+  last_update: '2026-02-16 00:27:29'
+  total_posts: 95
   total_images: 0
   total_videos: 0
   tags:
   - from_nodejs
   notes: 通过 Node.js 脚本添加
   forum_total_posts: 100
-  forum_stats_updated: '2026-02-15'
+  forum_stats_updated: '2026-02-16'
+- name: 常约汉
+  url: https://t66y.com/@常约汉
+  added_date: '2026-02-16'
+  last_update: '2026-02-16 00:27:37'
+  total_posts: 2
+  total_images: 0
+  total_videos: 0
+  tags:
+  - from_nodejs
+  notes: 通过 Node.js 脚本添加
+  forum_total_posts: 2
+  forum_stats_updated: '2026-02-16'
 storage:
   archive_path: /home/ben/Download/t66y
   analysis_path: ./分析报告
@@ -204,6 +216,8 @@ legacy:
   nodejs_path: ../
 user_preferences:
   last_selected_authors:
+  - 幸福的阿狸
   - 剑齿虎
+  - 常约汉
   remember_selection: true
-last_updated: '2026-02-15 21:26:03'
+last_updated: '2026-02-18 11:39:21'

@@ -10,10 +10,10 @@
 
 | 文档 | 说明 | 适用对象 |
 |------|------|---------|
-| **[PROJECT_OVERVIEW.md](./PROJECT_OVERVIEW.md)** | 项目总览，快速了解项目 | 所有人（首次阅读） |
-| **[FEATURES_DESIGN_OVERVIEW.md](./FEATURES_DESIGN_OVERVIEW.md)** ⭐ | **功能设计总览（AI编程实施入口）** | AI编程助手、工程师 |
+| **[README.md](./README.md)** | 项目简介和快速开始 | 所有人（首次阅读） |
 | **[SETUP.md](./SETUP.md)** | 环境安装配置指南 | 首次使用者 |
-| **README.md** | 项目简介（待创建） | 外部访问者 |
+| **[PORTABLE_MODE_GUIDE.md](./PORTABLE_MODE_GUIDE.md)** | 便携模式使用指南 | 移动硬盘/多电脑用户 |
+| **[PROJECT_OVERVIEW.md](./PROJECT_OVERVIEW.md)** | 项目总览，快速了解项目 | 所有人 |
 
 ### 📋 架构决策记录（ADR）
 
@@ -52,7 +52,7 @@
 | 文档 | 功能 | 状态 | 设计日期 |
 |------|------|------|---------|
 | **[FEATURES_DESIGN_OVERVIEW.md](./FEATURES_DESIGN_OVERVIEW.md)** ⭐ | **功能设计总览（AI编程实施入口）** | 🔄 持续更新 | 2026-02-13 |
-| **[ARCHIVE_PROGRESS_FEATURE_DESIGN.md](./ARCHIVE_PROGRESS_FEATURE_DESIGN.md)** | 归档进度显示功能（V1，已废弃） | ❌ 已废弃 | 2026-02-12 |
+| **[PORTABLE_MODE_DESIGN.md](./PORTABLE_MODE_DESIGN.md)** ⭐ | **便携模式设计规范（含代码清单）** | 📝 设计完成 | 2026-02-18 |
 | **[ARCHIVE_PROGRESS_FEATURE_DESIGN_V2.md](./ARCHIVE_PROGRESS_FEATURE_DESIGN_V2.md)** | 归档进度显示功能（V2） | ✅ 已实施 | 2026-02-12 |
 | **[REFRESH_NEW_POSTS_FEATURE_DESIGN.md](./REFRESH_NEW_POSTS_FEATURE_DESIGN.md)** ⭐ | **刷新检测新帖功能（方案C）** | 📝 待实施 | 2026-02-13 |
 
@@ -375,6 +375,7 @@ PROJECT_OVERVIEW.md (入口)
 | 1.3 | 2026-02-11 | 添加 Phase 2-B 完成报告和问题修复文档 |
 | 1.4 | 2026-02-12 | 添加增量改进记录、菜单增强记录、作者选择增强分析 |
 | 1.5 | 2026-02-13 | ⭐ 添加功能设计总览文档和刷新检测新帖功能设计 |
+| 1.6 | 2026-02-18 | 添加便携模式设计规范和使用指南 |
 
 ---
 

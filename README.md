@@ -104,41 +104,39 @@ git clone <仓库地址>
 cd gemini-t66y
 
 # 2. 运行安装脚本
-bash install.sh
+bash setup.sh
 
 # 3. 启动系统
-cd python
-source venv/bin/activate
-python main.py
+bash run.sh
 ```
 
-### 手动安装（5 分钟）
+---
+
+## 🔌 便携模式
+
+如果需要在多台电脑间共享归档数据（如使用移动硬盘），可以使用便携模式：
 
 ```bash
-# 1. 进入 Python 目录
-cd gemini-t66y/python
-
-# 2. 创建并激活虚拟环境
-python3 -m venv venv
-source venv/bin/activate  # Linux/macOS
-# venv\Scripts\activate  # Windows
-
-# 3. 安装依赖
-pip install -r requirements.txt
-
-# 4. 安装 Playwright 浏览器
-playwright install chromium
-
-# 5. 安装中文字体（Linux，可选）
-sudo apt install fonts-wqy-zenhei  # Ubuntu/Debian
-
-# 6. 启动系统
-python main.py
+# 指定归档目录启动
+bash run.sh --target /media/usb/t66y
 ```
 
-首次运行会启动配置向导，按提示完成配置。
+便携模式下，配置文件和数据库都存储在归档目录的 `.t66y/` 子目录中，便于整体备份和迁移。
 
-📖 **详细安装说明**: 参见 [SETUP.md](./SETUP.md)
+📖 **详细说明**: [PORTABLE_MODE_GUIDE.md](./PORTABLE_MODE_GUIDE.md)
+
+---
+
+## 📖 脚本说明
+
+| 脚本 | 用途 |
+|------|------|
+| `bash setup.sh` | 安装环境（创建虚拟环境、安装依赖） |
+| `bash run.sh --target <PATH>` | 便携模式运行 |
+| `bash run.sh` | 传统模式运行 |
+| `bash run.sh --help` | 查看帮助 |
+
+📖 **详细安装说明**: [SETUP.md](./SETUP.md)
 
 ---
 
