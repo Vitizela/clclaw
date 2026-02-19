@@ -2,12 +2,14 @@
 # =============================================================================
 # T66Y 论坛归档系统 - 程序运行脚本
 # =============================================================================
-# 版本: v1.0
+# 版本: v1.1
 # 用法:
-#   bash run.sh --target /path/to/archive   # 便携模式
-#   bash run.sh --setup                     # 配置向导
-#   bash run.sh                             # 检测模式
-#   bash run.sh --help                      # 显示帮助
+#   ./run.sh --target /path/to/archive   # 便携模式
+#   ./run.sh --setup                     # 配置向导
+#   ./run.sh                             # 检测模式
+#   ./run.sh --help                      # 显示帮助
+#
+# 说明: 首次运行会自动创建虚拟环境并安装依赖
 # =============================================================================
 
 # 颜色定义
@@ -33,9 +35,9 @@ show_help() {
     echo "T66Y 论坛归档系统 - 程序运行脚本"
     echo ""
     echo "用法:"
-    echo "  bash run.sh --target <PATH>    便携模式（推荐）"
-    echo "  bash run.sh --setup            启动配置向导"
-    echo "  bash run.sh                    检测模式"
+    echo "  ./run.sh --target <PATH>    便携模式（推荐）"
+    echo "  ./run.sh --setup            启动配置向导"
+    echo "  ./run.sh                    检测模式"
     echo ""
     echo "参数:"
     echo "  -t, --target PATH    指定归档目录（便携模式）"
@@ -45,15 +47,18 @@ show_help() {
     echo ""
     echo "示例:"
     echo "  # 便携模式"
-    echo "  bash run.sh --target /media/usb/t66y"
-    echo "  bash run.sh -t ~/Dropbox/t66y"
+    echo "  ./run.sh --target /media/usb/t66y"
+    echo "  ./run.sh -t ~/Dropbox/t66y"
     echo ""
     echo "  # 参数透传"
-    echo "  bash run.sh --target /path -- --help"
+    echo "  ./run.sh --target /path -- --help"
     echo ""
     echo "  # 传统模式"
-    echo "  bash run.sh --setup    # 首次运行配置向导"
-    echo "  bash run.sh            # 后续运行"
+    echo "  ./run.sh --setup    # 首次运行配置向导"
+    echo "  ./run.sh            # 后续运行"
+    echo ""
+    echo "说明:"
+    echo "  首次运行时会自动创建虚拟环境并安装依赖"
     echo ""
     echo "文档:"
     echo "  便携模式指南: PORTABLE_MODE_GUIDE.md"
@@ -73,16 +78,16 @@ show_first_run_hint() {
     echo "本系统支持两种模式："
     echo ""
     echo -e "${GREEN}【便携模式】推荐 - 配置和数据存储在归档目录${NC}"
-    echo "  bash run.sh --target /path/to/archive"
+    echo "  ./run.sh --target /path/to/archive"
     echo ""
     echo "  示例："
-    echo "  bash run.sh --target /media/usb/t66y_archive"
-    echo "  bash run.sh --target ~/Dropbox/t66y_archive"
-    echo "  bash run.sh --target /mnt/data/t66y -- --help"
+    echo "  ./run.sh --target /media/usb/t66y_archive"
+    echo "  ./run.sh --target ~/Dropbox/t66y_archive"
+    echo "  ./run.sh --target /mnt/data/t66y -- --help"
     echo ""
     echo "【传统模式】- 配置存储在程序目录"
     echo "  首次使用需要运行配置向导："
-    echo "  bash run.sh --setup"
+    echo "  ./run.sh --setup"
     echo ""
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${CYAN}  💡 新环境迁移提示${NC}"
@@ -94,7 +99,7 @@ show_first_run_hint() {
     echo "2. 使用 --target 参数指定归档目录"
     echo "3. 系统会自动加载已有的配置和数据库"
     echo ""
-    echo "  bash run.sh --target /path/to/copied/archive"
+    echo "  ./run.sh --target /path/to/copied/archive"
     echo ""
     echo "注意："
     echo "  • 避免两台电脑同时写入同一数据库"
@@ -104,22 +109,51 @@ show_first_run_hint() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
     echo "更多选项："
-    echo "  bash run.sh --help     查看完整帮助"
-    echo "  bash run.sh --target /path -- --help  查看 main.py 参数"
+    echo "  ./run.sh --help     查看完整帮助"
+    echo "  ./run.sh --target /path -- --help  查看 main.py 参数"
     echo ""
 }
 
 # =============================================================================
-# 检查虚拟环境
+# 检查并创建虚拟环境
 # =============================================================================
 check_venv() {
-    if [[ ! -d "$PYTHON_DIR/venv" ]]; then
-        echo -e "${RED}❌ 虚拟环境不存在${NC}"
+    if [[ ! -f "$PYTHON_DIR/venv/bin/activate" ]]; then
         echo ""
-        echo "请先运行安装脚本："
-        echo "  bash setup.sh"
+        echo -e "${YELLOW}⚠ 虚拟环境不存在，正在自动创建...${NC}"
         echo ""
-        exit 1
+        
+        # 检查 Python
+        if ! command -v python3 &> /dev/null; then
+            echo -e "${RED}❌ Python 3 未安装${NC}"
+            echo "请先安装 Python 3.10 或更高版本"
+            exit 1
+        fi
+        
+        # 创建虚拟环境
+        cd "$PYTHON_DIR"
+        python3 -m venv venv
+        if [[ $? -ne 0 ]]; then
+            echo -e "${RED}❌ 创建虚拟环境失败${NC}"
+            exit 1
+        fi
+        echo -e "${GREEN}✓ 虚拟环境创建成功${NC}"
+        
+        # 激活并安装依赖
+        source venv/bin/activate
+        pip install --upgrade pip -q
+        
+        if [[ -f "requirements.txt" ]]; then
+            echo "正在安装依赖..."
+            pip install -r requirements.txt -q
+            echo -e "${GREEN}✓ 依赖安装成功${NC}"
+        else
+            echo -e "${RED}❌ 未找到 requirements.txt${NC}"
+            exit 1
+        fi
+        
+        cd "$SCRIPT_DIR"
+        echo ""
     fi
 }
 
