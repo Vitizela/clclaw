@@ -152,6 +152,13 @@ check_venv() {
             exit 1
         fi
         
+        # 安装 Playwright 浏览器
+        if command -v playwright &> /dev/null; then
+            echo "正在安装 Playwright 浏览器..."
+            playwright install chromium 2>/dev/null || true
+            echo -e "${GREEN}✓ Playwright 浏览器安装完成${NC}"
+        fi
+        
         cd "$SCRIPT_DIR"
         echo ""
     fi
