@@ -125,6 +125,12 @@ install_dependencies() {
     echo -e "${CYAN}  步骤 3/6: 安装 Python 依赖${NC}"
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     
+    # 检查虚拟环境是否存在
+    if [[ ! -f "$PYTHON_DIR/venv/bin/activate" ]]; then
+        echo -e "${RED}❌ 虚拟环境不存在，请先运行 create_venv${NC}"
+        exit 1
+    fi
+    
     cd "$PYTHON_DIR"
     source venv/bin/activate
     
@@ -155,6 +161,12 @@ install_playwright() {
         echo -e "${YELLOW}⚠ 跳过 Playwright 安装（--quick 模式）${NC}"
         echo "  如需爬虫功能，请稍后运行："
         echo "  source python/venv/bin/activate && playwright install chromium"
+        return
+    fi
+    
+    # 检查虚拟环境是否存在
+    if [[ ! -f "$PYTHON_DIR/venv/bin/activate" ]]; then
+        echo -e "${RED}❌ 虚拟环境不存在${NC}"
         return
     fi
     
